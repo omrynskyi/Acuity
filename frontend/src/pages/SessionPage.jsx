@@ -3,7 +3,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, Mail } from 'lucide-react';
 import DrugStatusCard from '../components/DrugStatusCard.jsx';
 import InteractionCard from '../components/InteractionCard.jsx';
-import { analyzeRegimen, getSourceFindings } from '../api/index.js';
+import { streamAnalyzeRegimen, getSourceFindings } from '../api/index.js';
 import fixtures from '../data/fixtures.json';
 import styles from './SessionPage.module.css';
 
@@ -25,6 +25,9 @@ export default function SessionPage() {
   const [doneCount, setDoneCount] = useState(0);
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
+  const [synthesizedPairs, setSynthesizedPairs] = useState(new Map());
+  const [totalPairs, setTotalPairs] = useState(0);
+  const [streamPhase, setStreamPhase] = useState('idle');
   const calledRef = useRef(false);
 
   const existingDrugs = regimen.length > 0
@@ -39,25 +42,51 @@ export default function SessionPage() {
 
     const allDrugs = [...existingDrugs, newDrug.toLowerCase()];
 
-    analyzeRegimen(allDrugs, id !== 'pending' ? id : undefined)
-      .then(({ session_id, report: r }) => {
-        setReport(r);
-        existingDrugs.forEach((_, i) => {
-          setTimeout(() => setDoneCount((c) => c + 1), (i + 1) * STAGGER_MS);
-        });
-        setTimeout(() => {
-          navigate(`/session/${session_id}`, { replace: true, state: location.state });
-          setPhase('done');
-        }, (existingDrugs.length + 1) * STAGGER_MS + 400);
-      })
-      .catch((err) => setError(err.message));
+    streamAnalyzeRegimen(allDrugs, id !== 'pending' ? id : undefined, {
+      onEvent({ type, data }) {
+        if (type === 'intake_done') {
+          setStreamPhase('intake');
+          setTotalPairs(data.pairs?.length ?? 0);
+        } else if (type === 'memory_result') {
+          setStreamPhase('synthesis');
+        } else if (type === 'synthesis_result') {
+          const key = data.drug_pair.join('|');
+          setSynthesizedPairs((prev) => new Map(prev).set(key, data));
+          setDoneCount((c) => c + 1);
+        } else if (type === 'report_done') {
+          setReport(data.report);
+          navigate(`/session/${data.session_id}`, { replace: true, state: location.state });
+          setTimeout(() => setPhase('done'), 300);
+        }
+      },
+      onError(err) { setError(err.message); },
+    }).catch((err) => setError(err.message));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const PHASE_LABELS = {
+    idle: 'Preparing analysis…',
+    intake: 'Identifying drugs via RxNorm…',
+    synthesis: `Analyzing pairs (${synthesizedPairs.size} / ${totalPairs})`,
+    done: 'Analysis complete',
+  };
+
   function snippetForDrug(drugName) {
+    const lower = drugName.toLowerCase();
+    for (const [key, synth] of synthesizedPairs) {
+      if (key.split('|').includes(lower)) return synth.headline;
+    }
     const finding = sourceFindings.find(
-      (f) => f.drug_pair.includes(drugName.toLowerCase()) && f.findings.length > 0
+      (f) => f.drug_pair.includes(lower) && f.findings.length > 0
     );
-    return finding ? finding.findings[0].description : 'This drug is a good match';
+    return finding ? finding.findings[0].description : 'Checking interactions…';
+  }
+
+  function isDrugDone(drugName) {
+    const lower = drugName.toLowerCase();
+    for (const key of synthesizedPairs.keys()) {
+      if (key.split('|').includes(lower)) return true;
+    }
+    return false;
   }
 
   if (error) {
@@ -84,12 +113,12 @@ export default function SessionPage() {
           </button>
           <p className="text-section-label">We are researching the possible drug interactions for:</p>
           <h1 className="text-title mt-4">{capitalize(newDrug)}</h1>
-          <p className={`${styles.loadingNote} mt-8`}>Your full report will appear here after research is done</p>
+          <p className={`${styles.loadingNote} mt-8`}>{PHASE_LABELS[streamPhase]}</p>
         </div>
 
         <div className={styles.cardsRow}>
           {existingDrugs.map((drug, i) => {
-            const isDone = i < doneCount;
+            const isDone = isDrugDone(drug);
             const span = bentoSpan(i, existingDrugs.length);
             return (
               <div key={drug} style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>

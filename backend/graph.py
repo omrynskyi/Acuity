@@ -16,7 +16,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from itertools import combinations
-from typing import Any, TypedDict
+from typing import Any, AsyncGenerator, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -189,3 +189,97 @@ async def run_analysis(session_id: str, drugs: list[str]) -> AcuityState:
         "durations_ms": {},
     }
     return await graph().ainvoke(init)
+
+
+async def run_analysis_streaming(
+    session_id: str,
+    drugs: list[str],
+) -> AsyncGenerator[tuple[str, dict], None]:
+    """Async generator that runs the pipeline and yields (event_type, payload) as each stage completes."""
+    state: AcuityState = {
+        "session_id": session_id,
+        "raw_regimen": drugs,
+        "durations_ms": {},
+        "started_at": datetime.now(timezone.utc),
+    }
+
+    # Stage 1: intake
+    try:
+        state = await intake_node(state)
+    except Exception as e:
+        yield ("error", {"detail": str(e), "stage": "intake"})
+        return
+    yield ("intake_done", {
+        "regimen": [d.model_dump() for d in state["regimen"]],
+        "pairs": [list(p) for p in state["pairs"]],
+        "duration_ms": state["durations_ms"].get("intake_ms"),
+    })
+
+    # Stage 2: memory
+    try:
+        state = await memory_node(state)
+    except Exception as e:
+        yield ("error", {"detail": str(e), "stage": "memory"})
+        return
+    yield ("memory_result", {
+        "total_pairs": len(state["pairs"]),
+        "new_pairs": [list(p) for p in state["new_pairs"]],
+        "cached_pairs": [list(p) for p in state["cached_pairs"]],
+        "duration_ms": state["durations_ms"].get("memory_ms"),
+    })
+
+    # Emit cached syntheses immediately so the frontend can update right away
+    for synth in state.get("syntheses", []):
+        yield ("synthesis_result", {**synth.model_dump(), "cached": True, "duration_ms": 0})
+
+    # Stage 3: fanout (runs atomically per pair across all 3 sources)
+    try:
+        state = await fanout_node(state)
+    except Exception as e:
+        yield ("error", {"detail": str(e), "stage": "fanout"})
+        return
+
+    # Stage 4: synthesis — run all pairs in parallel, yield each result as it finishes
+    new_pairs = state.get("new_pairs", [])
+    if new_pairs:
+        findings = state["source_findings"]
+        queue: asyncio.Queue = asyncio.Queue()
+        new_syntheses: list[SynthesizedInteraction] = []
+
+        async def _run_pair(pair: tuple[str, str]) -> None:
+            try:
+                t0 = datetime.now(timezone.utc)
+                result = await synthesize_pair(pair, findings.get(pair, []))
+                ms = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
+                await queue.put((pair, result, ms, None))
+            except Exception as exc:
+                await queue.put((pair, None, 0, exc))
+
+        tasks = [asyncio.create_task(_run_pair(p)) for p in new_pairs]
+        t_synth = datetime.now(timezone.utc)
+        for _ in range(len(tasks)):
+            pair, synth, ms, err = await queue.get()
+            if err:
+                yield ("error", {"detail": str(err), "stage": "synthesis", "pair": list(pair)})
+            else:
+                new_syntheses.append(synth)
+                yield ("synthesis_result", {**synth.model_dump(), "cached": False, "duration_ms": ms})
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        mem = memory_for(session_id)
+        mem.store_many(new_syntheses)
+        durations = state["durations_ms"]
+        durations["synthesis_ms"] = int((datetime.now(timezone.utc) - t_synth).total_seconds() * 1000)
+        state = {**state, "syntheses": state.get("syntheses", []) + new_syntheses, "durations_ms": durations}
+
+    # Stage 5: report
+    try:
+        state = await report_node(state)
+    except Exception as e:
+        yield ("error", {"detail": str(e), "stage": "report"})
+        return
+    yield ("report_done", {
+        "session_id": session_id,
+        "report": state["report"].model_dump(),
+        "durations_ms": state["durations_ms"],
+    })

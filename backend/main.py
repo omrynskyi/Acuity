@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import uuid
@@ -17,12 +18,13 @@ from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 load_dotenv()
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 
-from backend.graph import run_analysis  # noqa: E402
+from backend.graph import run_analysis, run_analysis_streaming  # noqa: E402
 from backend.memory import reset as reset_memory  # noqa: E402
 from backend.schemas import RegimenReport  # noqa: E402
 
@@ -77,6 +79,31 @@ async def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
         session_id=session_id,
         report=state["report"],
         durations_ms=state["durations_ms"],
+    )
+
+
+async def _sse_generator(session_id: str, drugs: list[str]):
+    try:
+        async for event_type, payload in run_analysis_streaming(session_id, drugs):
+            data_line = json.dumps(payload, default=str)
+            yield f"event: {event_type}\ndata: {data_line}\n\n"
+    except Exception as e:
+        logging.exception("SSE generator crashed")
+        err = json.dumps({"detail": str(e), "stage": "unknown"}, default=str)
+        yield f"event: error\ndata: {err}\n\n"
+
+
+@app.post("/api/analyze/stream")
+async def analyze_stream(req: AnalyzeRequest) -> StreamingResponse:
+    session_id = req.session_id or str(uuid.uuid4())
+    return StreamingResponse(
+        _sse_generator(session_id, req.drugs),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Nginx-Buffering": "no",
+            "Connection": "keep-alive",
+        },
     )
 
 
