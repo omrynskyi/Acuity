@@ -70,6 +70,12 @@ Each finding has:
    commentary. The schema below is non-negotiable.
 7. **Be brief.** Headlines are one sentence. Reasoning is 3–6 sentences for
    non-trivial cases, fewer for clear ones.
+8. **`reasoning` must be flowing prose.** Write as if explaining to a patient
+   — no bullet points, no field-name prefixes, no key-value pairs. Never
+   start a sentence with "Sources contributing findings:", "Cross-source
+   agreement:", "Strongest single-source severity hint:", or any similar
+   metadata label. If you catch yourself writing a label followed by a colon
+   and a value, rewrite it as a plain sentence instead.
 
 ### Output schema (strict JSON)
 

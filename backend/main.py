@@ -171,9 +171,9 @@ def _resolve_profile_id(user: dict) -> Optional[str]:
         return None
 
 
-async def _sse_generator(session_id: str, drugs: list[str], profile_id: Optional[str] = None):
+async def _sse_generator(session_id: str, drugs: list[str], profile_id: Optional[str] = None, *, target_drug: Optional[str] = None):
     try:
-        async for event_type, payload in run_analysis_streaming(session_id, drugs):
+        async for event_type, payload in run_analysis_streaming(session_id, drugs, target_drug=target_drug):
             data_line = json.dumps(payload, default=str)
             yield f"event: {event_type}\ndata: {data_line}\n\n"
             if event_type == "report_done":
@@ -231,7 +231,7 @@ async def analyze_drug(req: AnalyzeDrugRequest, user: dict = Depends(get_current
         raise HTTPException(status_code=422, detail="Regimen needs at least one other drug to compare against")
     session_id = req.session_id or str(uuid.uuid4())
     try:
-        state = await run_analysis(session_id, drug_list)
+        state = await run_analysis(session_id, drug_list, target_drug=req.drug)
     except Exception as e:
         logging.exception("analyze/drug pipeline failed")
         raise HTTPException(status_code=500, detail=f"pipeline failure: {e}")
@@ -249,7 +249,7 @@ async def analyze_drug_stream(req: AnalyzeDrugRequest, user: dict = Depends(get_
         raise HTTPException(status_code=422, detail="Regimen needs at least one other drug to compare against")
     session_id = req.session_id or str(uuid.uuid4())
     return StreamingResponse(
-        _sse_generator(session_id, drug_list, profile_id),
+        _sse_generator(session_id, drug_list, profile_id, target_drug=req.drug),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Nginx-Buffering": "no", "Connection": "keep-alive"},
     )
