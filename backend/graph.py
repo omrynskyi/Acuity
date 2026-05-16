@@ -1,0 +1,191 @@
+"""LangGraph orchestration (BE-11).
+
+Pipeline:
+    intake → fanout (parallel per pair × source) → synthesis (per pair) → report
+
+LangGraph here is the orchestration shell — the actual concurrency for the
+fan-out lives in `backend.fanout.fanout_pairs` (asyncio.gather under a
+semaphore). LangGraph's per-node graph state makes the pipeline easy to
+inspect from the frontend and trivial to add new nodes to (e.g. an attack
+detector before the network calls).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from datetime import datetime, timezone
+from itertools import combinations
+from typing import Any, TypedDict
+
+from langgraph.graph import END, StateGraph
+
+from backend.fanout import fanout_pairs
+from backend.memory import memory_for
+from backend.report import build_report
+from backend.schemas import (
+    NormalizedDrug,
+    RegimenReport,
+    SourceFindings,
+    SynthesizedInteraction,
+)
+from backend.sources.rxnorm import normalize_regimen
+from backend.synthesis import synthesize_pair
+
+log = logging.getLogger(__name__)
+
+
+class AcuityState(TypedDict, total=False):
+    """The graph's mutable state. Frontend renders it node-by-node."""
+
+    session_id: str
+    raw_regimen: list[str]
+    regimen: list[NormalizedDrug]
+    pairs: list[tuple[str, str]]
+    new_pairs: list[tuple[str, str]]
+    cached_pairs: list[tuple[str, str]]
+    source_findings: dict[tuple[str, str], list[SourceFindings]]
+    syntheses: list[SynthesizedInteraction]
+    report: RegimenReport
+    started_at: datetime
+    durations_ms: dict[str, int]
+
+
+# --------------------------------------------------------------------------- #
+# Nodes
+# --------------------------------------------------------------------------- #
+
+async def intake_node(state: AcuityState) -> AcuityState:
+    """Normalize free-text drug names and generate the pair list."""
+    t0 = datetime.now(timezone.utc)
+    raw = state.get("raw_regimen") or []
+    normalized = await normalize_regimen(raw)
+
+    # Build pairs over recognised drugs only; unknown ones are surfaced in
+    # the regimen list but excluded from interaction checks.
+    keys = [d.generic_name or d.input_name.lower() for d in normalized if d.found]
+    pairs = list(combinations(sorted(set(keys)), 2))
+
+    durations = state.get("durations_ms") or {}
+    durations["intake_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
+    return {
+        **state,
+        "regimen": normalized,
+        "pairs": pairs,
+        "started_at": state.get("started_at") or t0,
+        "durations_ms": durations,
+    }
+
+
+async def memory_node(state: AcuityState) -> AcuityState:
+    """Split pairs into new vs cached via the per-session memory store."""
+    t0 = datetime.now(timezone.utc)
+    mem = memory_for(state["session_id"])
+    pairs = state["pairs"]
+    new_pairs, cached_pairs, cached_syntheses = mem.partition(pairs)
+    durations = state["durations_ms"]
+    durations["memory_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
+    return {
+        **state,
+        "new_pairs": new_pairs,
+        "cached_pairs": cached_pairs,
+        "syntheses": list(cached_syntheses),
+        "durations_ms": durations,
+    }
+
+
+async def fanout_node(state: AcuityState) -> AcuityState:
+    """Run the three source agents for each new pair, in parallel."""
+    t0 = datetime.now(timezone.utc)
+    new_pairs = state["new_pairs"]
+    if new_pairs:
+        findings = await fanout_pairs(new_pairs, concurrency=4)
+    else:
+        findings = {}
+    durations = state["durations_ms"]
+    durations["fanout_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
+    return {**state, "source_findings": findings, "durations_ms": durations}
+
+
+async def synthesis_node(state: AcuityState) -> AcuityState:
+    """Synthesize per-pair verdicts. Parallel across pairs."""
+    t0 = datetime.now(timezone.utc)
+    mem = memory_for(state["session_id"])
+    findings = state["source_findings"]
+    pairs = state["new_pairs"]
+
+    new_syntheses = await asyncio.gather(
+        *(synthesize_pair(p, findings.get(p, [])) for p in pairs)
+    )
+    mem.store_many(new_syntheses)
+
+    durations = state["durations_ms"]
+    durations["synthesis_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
+
+    return {
+        **state,
+        "syntheses": state["syntheses"] + list(new_syntheses),
+        "durations_ms": durations,
+    }
+
+
+async def report_node(state: AcuityState) -> AcuityState:
+    """Aggregate into a RegimenReport."""
+    t0 = datetime.now(timezone.utc)
+    mem = memory_for(state["session_id"])
+    # Persist the regimen so follow-up queries can compute deltas.
+    mem.set_regimen(state["regimen"])
+
+    report = await build_report(
+        regimen=state["regimen"],
+        pair_results=state["syntheses"],
+        new_pairs=state["new_pairs"],
+        cached_pairs=state["cached_pairs"],
+    )
+    durations = state["durations_ms"]
+    durations["report_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
+    durations["total_ms"] = int(
+        (datetime.now(timezone.utc) - state["started_at"]).total_seconds() * 1000
+    )
+    return {**state, "report": report, "durations_ms": durations}
+
+
+# --------------------------------------------------------------------------- #
+# Graph factory
+# --------------------------------------------------------------------------- #
+
+def build_graph() -> Any:
+    """Build and compile the Acuity graph. Cached at module load by caller."""
+    g = StateGraph(AcuityState)
+    g.add_node("intake", intake_node)
+    g.add_node("memory", memory_node)
+    g.add_node("fanout", fanout_node)
+    g.add_node("synthesis", synthesis_node)
+    g.add_node("report", report_node)
+    g.set_entry_point("intake")
+    g.add_edge("intake", "memory")
+    g.add_edge("memory", "fanout")
+    g.add_edge("fanout", "synthesis")
+    g.add_edge("synthesis", "report")
+    g.add_edge("report", END)
+    return g.compile()
+
+
+_GRAPH = None
+
+
+def graph() -> Any:
+    global _GRAPH
+    if _GRAPH is None:
+        _GRAPH = build_graph()
+    return _GRAPH
+
+
+async def run_analysis(session_id: str, drugs: list[str]) -> AcuityState:
+    """Convenience runner used by the FastAPI endpoint and tests."""
+    init: AcuityState = {
+        "session_id": session_id,
+        "raw_regimen": drugs,
+        "durations_ms": {},
+    }
+    return await graph().ainvoke(init)

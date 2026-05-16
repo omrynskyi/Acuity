@@ -1,5 +1,11 @@
 # [PROJECT NAME] Task Breakdown
 
+> **TODO(synthetic-data):** TWOSIDES leg is now backed by the real SNAP
+> Decagon dataset (`data/decagon.sqlite`, built by `scripts/build_decagon.py`).
+> The remaining hand-authored asset is `samples/fixtures.json` (frontend dev
+> material) — regenerate from a live `/api/analyze` response before judging.
+> `grep -rn "TODO(synthetic-data)" .` lists every remaining marker.
+
 **Companion to PRD.md**
 **Track:** Cloud (Brev + Nemotron) + NemoClaw
 **Team:** 2 people (Person A = backend/agents, Person B = frontend/demo + design)
@@ -34,7 +40,7 @@ Frontend tasks are open-ended on visual treatment. Oleg designs as he builds.
 
 This is the highest-risk phase. If access to Brev, Nemotron, or NemoClaw doesn't work, the whole project is blocked. Resolve all access issues in the first hour, period.
 
-### JOINT-00 · Access verification sprint
+### [DONE] JOINT-00 · Access verification sprint
 **Owner:** Joint
 **Depends on:** nothing
 **Time:** 45 min, hard cap
@@ -56,7 +62,7 @@ Get every dependency working before doing anything else. Whatever doesn't work i
 
 ---
 
-### BE-01 · Repo scaffold + dependencies
+### [DONE] BE-01 · Repo scaffold + dependencies
 **Owner:** Person A
 **Depends on:** JOINT-00
 **Time:** 30 min
@@ -72,7 +78,7 @@ Get every dependency working before doing anything else. Whatever doesn't work i
 
 ---
 
-### BE-02 · Data source smoke tests
+### [DONE] BE-02 · Data source smoke tests
 **Owner:** Person A
 **Depends on:** BE-01
 **Time:** 30 min
@@ -90,7 +96,7 @@ Hit every data source you plan to use. Save real samples for the team to referen
 
 ---
 
-### BE-03 · Third source decision + integration
+### [DONE] BE-03 · Third source decision + integration
 **Owner:** Person A
 **Depends on:** BE-02
 **Time:** 1 hour, hard cap
@@ -110,7 +116,7 @@ Pick the third source NOW. Default to TWOSIDES because it's the fastest to integ
 
 ---
 
-### JOINT-01 · Lock the JSON schema
+### [DONE] JOINT-01 · Lock the JSON schema
 **Owner:** Joint, critical coordination point
 **Depends on:** BE-01, BE-02 (helpful, not blocking)
 **Time:** 30 min, do this around H1
@@ -128,7 +134,7 @@ Define the contract between source agents and synthesis, and between backend and
 
 ---
 
-### JOINT-02 · Demo cases + design direction
+### [IN PROGRESS] JOINT-02 · Demo cases + design direction
 **Owner:** Joint (15 min for cases) + Person B (rest is design)
 **Depends on:** BE-02
 **Time:** 30 min joint, then Person B continues design work in parallel
@@ -144,12 +150,12 @@ Define the contract between source agents and synthesis, and between backend and
 6. Pick visual identity (typography, color, motion vocabulary, layout)
 7. Mock up the key states: input, fan-out, synthesis moment, report, NemoClaw block
 
-**Acceptance (joint):** Three demo cases documented.
-**Acceptance (design):** Person B has enough direction to start building. Will iterate during build.
+**Acceptance (joint):** Three demo cases documented. → met by Person A in `docs/demo-cases.md`.
+**Acceptance (design):** Person B has enough direction to start building. Will iterate during build. → pending Person B.
 
 ---
 
-### BE-04 · RxNorm normalization tool
+### [DONE] BE-04 · RxNorm normalization tool
 **Owner:** Person A
 **Depends on:** JOINT-01, BE-02
 **Time:** 45 min
@@ -188,7 +194,7 @@ Set up the frontend project and start implementing the design from JOINT-02.
 
 ## Phase 1: Source agents (H4 to H7)
 
-### BE-05 · OpenFDA Label source agent
+### [DONE] BE-05 · OpenFDA Label source agent
 **Owner:** Person A
 **Depends on:** JOINT-01, BE-04
 **Time:** 1.5h
@@ -205,7 +211,7 @@ Set up the frontend project and start implementing the design from JOINT-02.
 
 ---
 
-### BE-06 · OpenFDA FAERS source agent
+### [DONE] BE-06 · OpenFDA FAERS source agent
 **Owner:** Person A
 **Depends on:** BE-05
 **Time:** 1.5h
@@ -222,7 +228,7 @@ Set up the frontend project and start implementing the design from JOINT-02.
 
 ---
 
-### BE-07 · TWOSIDES source agent
+### [DONE] BE-07 · TWOSIDES source agent
 **Owner:** Person A
 **Depends on:** BE-03
 **Time:** 45 min
@@ -265,7 +271,7 @@ Build the two big visual components in parallel: the agent graph and the report 
 
 This is the intellectual core. 6 hours is the right budget. Do not cut this.
 
-### BE-08 · Synthesis agent v1
+### [DONE] BE-08 · Synthesis agent v1
 **Owner:** Person A
 **Depends on:** BE-05, BE-06, BE-07
 **Time:** 2h
@@ -284,7 +290,7 @@ Get a basic working synthesis. Polish later.
 
 ---
 
-### BE-09 · Synthesis prompt iteration
+### [IN PROGRESS] BE-09 · Synthesis prompt iteration
 **Owner:** Person A
 **Depends on:** BE-08
 **Time:** 3h
@@ -309,7 +315,7 @@ The most important block of time in the whole build. Iterate the prompt against 
 
 ---
 
-### BE-10 · Report assembly
+### [DONE] BE-10 · Report assembly
 **Owner:** Person A
 **Depends on:** BE-09
 **Time:** 45 min
@@ -364,7 +370,7 @@ Write the demo script as words on a page.
 
 ## Phase 3: Integration (H13 to H14)
 
-### BE-11 · LangGraph orchestration + intake
+### [DONE] BE-11 · LangGraph orchestration + intake
 **Owner:** Person A
 **Depends on:** BE-04, BE-05, BE-06, BE-07, BE-10
 **Time:** 1.5h
@@ -383,7 +389,7 @@ Full LangGraph pipeline: intake → parallel fan-out → synthesis → report.
 
 ---
 
-### BE-12 · Memory layer
+### [DONE] BE-12 · Memory layer
 **Owner:** Person A
 **Depends on:** BE-11
 **Time:** 45 min
@@ -403,7 +409,7 @@ Persist regimen and findings across queries so follow-ups only re-evaluate delta
 
 ## Phase 4: NemoClaw (H14 to H17)
 
-### BE-13 · NemoClaw policy authoring
+### [DONE] BE-13 · NemoClaw policy authoring
 **Owner:** Person A
 **Depends on:** BE-11, JOINT-00
 **Time:** 45 min
@@ -421,7 +427,7 @@ Write the production NemoClaw policy.
 
 ---
 
-### BE-14 · NemoClaw deployment + verification
+### [DONE] BE-14 · NemoClaw deployment + verification
 **Owner:** Person A
 **Depends on:** BE-13
 **Time:** 1.5h
@@ -441,7 +447,7 @@ Run the actual agent under NemoClaw.
 
 ---
 
-### BE-15 · NemoClaw demo endpoints
+### [DONE] BE-15 · NemoClaw demo endpoints
 **Owner:** Person A
 **Depends on:** BE-14
 **Time:** 30 min
@@ -555,7 +561,7 @@ Run the demo three times. Refine the script.
 
 ---
 
-### BE-16 · README (Cloud track)
+### [DONE] BE-16 · README (Cloud track)
 **Owner:** Person A
 **Depends on:** JOINT-04
 **Time:** 45 min
@@ -573,7 +579,7 @@ Run the demo three times. Refine the script.
 
 ---
 
-### BE-17 · README (NemoClaw track)
+### [DONE] BE-17 · README (NemoClaw track)
 **Owner:** Person A
 **Depends on:** BE-16
 **Time:** 30 min

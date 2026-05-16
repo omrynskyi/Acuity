@@ -1,4 +1,4 @@
-
+TODO: Add citations to specific parts of response, such as "blah blah blah sky is blue blah blah blah" where "Sky is blue" is underlined with a citation to the document that led to this reasoning. 
 # ACUITY PRD
 
 **Status:** Draft v0.1

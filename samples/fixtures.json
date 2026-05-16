@@ -1,0 +1,416 @@
+{
+  "source_findings": [
+    {
+      "source": "openfda_label",
+      "drug_pair": [
+        "aspirin",
+        "warfarin"
+      ],
+      "queried_at": "2026-05-16T04:30:00Z",
+      "findings": [
+        {
+          "type": "interaction",
+          "description": "Concomitant aspirin increases risk of major and fatal bleeding when given with warfarin.",
+          "severity_hint": "major",
+          "evidence": {
+            "raw_excerpt": "WARNING: BLEEDING RISK \u2014 Warfarin sodium can cause major or fatal bleeding. Concomitant use of aspirin and NSAIDs increases this risk.",
+            "frequency": null,
+            "probability": null,
+            "source_url": "https://api.fda.gov/drug/label.json?search=openfda.generic_name:warfarin"
+          }
+        },
+        {
+          "type": "interaction",
+          "description": "Boxed warning explicitly lists antiplatelet drugs as bleeding-risk modifiers.",
+          "severity_hint": "major",
+          "evidence": {
+            "raw_excerpt": "Drugs that affect haemostasis (e.g., aspirin) may increase bleeding risk.",
+            "frequency": null,
+            "probability": null,
+            "source_url": null
+          }
+        }
+      ],
+      "coverage": "full",
+      "confidence": "high"
+    },
+    {
+      "source": "openfda_faers",
+      "drug_pair": [
+        "aspirin",
+        "warfarin"
+      ],
+      "queried_at": "2026-05-16T04:30:00Z",
+      "findings": [
+        {
+          "type": "adverse_event",
+          "description": "Gastrointestinal haemorrhage co-reported in 1,842 cases.",
+          "severity_hint": "major",
+          "evidence": {
+            "raw_excerpt": "Top co-reported reaction across cases listing both warfarin and aspirin.",
+            "frequency": 1842.0,
+            "probability": null,
+            "source_url": "https://api.fda.gov/drug/event.json?search=patient.drug.openfda.generic_name:warfarin+AND+patient.drug.openfda.generic_name:aspirin"
+          }
+        },
+        {
+          "type": "adverse_event",
+          "description": "Intracranial haemorrhage co-reported in 128 cases.",
+          "severity_hint": "major",
+          "evidence": {
+            "raw_excerpt": null,
+            "frequency": 128.0,
+            "probability": null,
+            "source_url": null
+          }
+        }
+      ],
+      "coverage": "full",
+      "confidence": "high"
+    },
+    {
+      "source": "twosides",
+      "drug_pair": [
+        "aspirin",
+        "warfarin"
+      ],
+      "queried_at": "2026-05-16T04:30:00Z",
+      "findings": [
+        {
+          "type": "predicted_effect",
+          "description": "Gastrointestinal haemorrhage PRR=6.41 \u2014 strong signal vs background.",
+          "severity_hint": "major",
+          "evidence": {
+            "raw_excerpt": null,
+            "frequency": 1842.0,
+            "probability": 6.41,
+            "source_url": null
+          }
+        },
+        {
+          "type": "predicted_effect",
+          "description": "Epistaxis PRR=4.11.",
+          "severity_hint": "moderate",
+          "evidence": {
+            "raw_excerpt": null,
+            "frequency": 498.0,
+            "probability": 4.11,
+            "source_url": null
+          }
+        }
+      ],
+      "coverage": "full",
+      "confidence": "high"
+    },
+    {
+      "source": "openfda_label",
+      "drug_pair": [
+        "fluoxetine",
+        "tramadol"
+      ],
+      "queried_at": "2026-05-16T04:30:00Z",
+      "findings": [
+        {
+          "type": "interaction",
+          "description": "Use of tramadol with SSRIs increases risk of serotonin syndrome.",
+          "severity_hint": "major",
+          "evidence": {
+            "raw_excerpt": "Cases of serotonin syndrome have been reported with concurrent use of tramadol and serotonergic drugs including SSRIs.",
+            "frequency": null,
+            "probability": null,
+            "source_url": null
+          }
+        }
+      ],
+      "coverage": "partial",
+      "confidence": "medium"
+    },
+    {
+      "source": "openfda_faers",
+      "drug_pair": [
+        "fluoxetine",
+        "tramadol"
+      ],
+      "queried_at": "2026-05-16T04:30:00Z",
+      "findings": [
+        {
+          "type": "adverse_event",
+          "description": "Serotonin syndrome co-reported in 412 cases.",
+          "severity_hint": "major",
+          "evidence": {
+            "raw_excerpt": null,
+            "frequency": 412.0,
+            "probability": null,
+            "source_url": null
+          }
+        },
+        {
+          "type": "adverse_event",
+          "description": "Seizure co-reported in 188 cases \u2014 secondary signal.",
+          "severity_hint": "moderate",
+          "evidence": {
+            "raw_excerpt": null,
+            "frequency": 188.0,
+            "probability": null,
+            "source_url": null
+          }
+        }
+      ],
+      "coverage": "full",
+      "confidence": "medium"
+    },
+    {
+      "source": "twosides",
+      "drug_pair": [
+        "fluoxetine",
+        "tramadol"
+      ],
+      "queried_at": "2026-05-16T04:30:00Z",
+      "findings": [
+        {
+          "type": "predicted_effect",
+          "description": "Serotonin syndrome PRR=8.81 \u2014 very strong signal.",
+          "severity_hint": "major",
+          "evidence": {
+            "raw_excerpt": null,
+            "frequency": 412.0,
+            "probability": 8.81,
+            "source_url": null
+          }
+        }
+      ],
+      "coverage": "full",
+      "confidence": "high"
+    },
+    {
+      "source": "openfda_label",
+      "drug_pair": [
+        "lisinopril",
+        "metformin"
+      ],
+      "queried_at": "2026-05-16T04:30:00Z",
+      "findings": [
+        {
+          "type": "interaction",
+          "description": "ACE inhibitors may potentiate hypoglycaemia in metformin-treated patients.",
+          "severity_hint": "minor",
+          "evidence": {
+            "raw_excerpt": "Concomitant use of ACE inhibitors with antidiabetics may rarely cause symptomatic hypoglycaemia.",
+            "frequency": null,
+            "probability": null,
+            "source_url": null
+          }
+        }
+      ],
+      "coverage": "partial",
+      "confidence": "low"
+    },
+    {
+      "source": "openfda_faers",
+      "drug_pair": [
+        "lisinopril",
+        "metformin"
+      ],
+      "queried_at": "2026-05-16T04:30:00Z",
+      "findings": [
+        {
+          "type": "adverse_event",
+          "description": "Hypoglycaemia co-reported in 312 cases.",
+          "severity_hint": "minor",
+          "evidence": {
+            "raw_excerpt": null,
+            "frequency": 312.0,
+            "probability": null,
+            "source_url": null
+          }
+        }
+      ],
+      "coverage": "full",
+      "confidence": "medium"
+    },
+    {
+      "source": "twosides",
+      "drug_pair": [
+        "lisinopril",
+        "metformin"
+      ],
+      "queried_at": "2026-05-16T04:30:00Z",
+      "findings": [
+        {
+          "type": "predicted_effect",
+          "description": "Hypoglycaemia PRR=1.92 \u2014 modest signal.",
+          "severity_hint": "minor",
+          "evidence": {
+            "raw_excerpt": null,
+            "frequency": 312.0,
+            "probability": 1.92,
+            "source_url": null
+          }
+        }
+      ],
+      "coverage": "full",
+      "confidence": "medium"
+    }
+  ],
+  "regimen_report": {
+    "schema_version": "1.0",
+    "regimen": [
+      {
+        "input_name": "warfarin",
+        "rxcui": "11289",
+        "generic_name": "warfarin",
+        "brand_names": [
+          "Coumadin",
+          "Jantoven"
+        ],
+        "found": true
+      },
+      {
+        "input_name": "aspirin",
+        "rxcui": "1191",
+        "generic_name": "aspirin",
+        "brand_names": [
+          "Bayer",
+          "Ecotrin"
+        ],
+        "found": true
+      },
+      {
+        "input_name": "fluoxetine",
+        "rxcui": "4493",
+        "generic_name": "fluoxetine",
+        "brand_names": [
+          "Prozac"
+        ],
+        "found": true
+      },
+      {
+        "input_name": "tramadol",
+        "rxcui": "10689",
+        "generic_name": "tramadol",
+        "brand_names": [
+          "Ultram"
+        ],
+        "found": true
+      },
+      {
+        "input_name": "metformin",
+        "rxcui": "6809",
+        "generic_name": "metformin",
+        "brand_names": [
+          "Glucophage"
+        ],
+        "found": true
+      },
+      {
+        "input_name": "lisinopril",
+        "rxcui": "29046",
+        "generic_name": "lisinopril",
+        "brand_names": [
+          "Prinivil",
+          "Zestril"
+        ],
+        "found": true
+      }
+    ],
+    "generated_at": "2026-05-16T04:30:00Z",
+    "overall_summary": "Two major interactions and one minor flagged across 15 evaluated pairs. Warfarin + aspirin and fluoxetine + tramadol both require intervention; metformin + lisinopril is acceptable with routine monitoring.",
+    "interactions": [
+      {
+        "drug_pair": [
+          "warfarin",
+          "aspirin"
+        ],
+        "severity": "major",
+        "headline": "High risk of major or fatal bleeding when warfarin and aspirin are used together.",
+        "reasoning": "All three sources converge. OpenFDA's boxed warning on warfarin explicitly lists antiplatelets like aspirin as bleeding-risk modifiers. FAERS shows 1,842 co-reported GI haemorrhage cases and 128 intracranial bleeds for this pair, which is the dominant adverse-event signal. TWOSIDES corroborates with PRR=6.41 for GI haemorrhage. No source disagrees. Severity locked at MAJOR.",
+        "citations": [
+          {
+            "source": "openfda_label",
+            "finding_index": 0,
+            "quote": "Concomitant use of aspirin and NSAIDs increases this risk."
+          },
+          {
+            "source": "openfda_faers",
+            "finding_index": 0,
+            "quote": "1,842 cases of gastrointestinal haemorrhage."
+          },
+          {
+            "source": "twosides",
+            "finding_index": 0,
+            "quote": "PRR=6.41 for GI haemorrhage."
+          }
+        ],
+        "predicted_but_unverified": false,
+        "sources_agreement": "agree"
+      },
+      {
+        "drug_pair": [
+          "fluoxetine",
+          "tramadol"
+        ],
+        "severity": "major",
+        "headline": "Serotonin syndrome risk: concurrent SSRI + tramadol is an established cause.",
+        "reasoning": "Label explicitly cites SSRI + tramadol as a serotonin-syndrome risk pairing. FAERS shows 412 serotonin-syndrome co-reports and TWOSIDES PRR=8.81 \u2014 among the highest signals in the dataset. All three sources agree.",
+        "citations": [
+          {
+            "source": "openfda_label",
+            "finding_index": 0,
+            "quote": "Cases of serotonin syndrome have been reported."
+          },
+          {
+            "source": "openfda_faers",
+            "finding_index": 0,
+            "quote": "412 cases of serotonin syndrome."
+          },
+          {
+            "source": "twosides",
+            "finding_index": 0,
+            "quote": "PRR=8.81."
+          }
+        ],
+        "predicted_but_unverified": false,
+        "sources_agreement": "agree"
+      },
+      {
+        "drug_pair": [
+          "metformin",
+          "lisinopril"
+        ],
+        "severity": "minor",
+        "headline": "Mild hypoglycaemia risk; commonly co-prescribed in diabetes with hypertension.",
+        "reasoning": "Label flags a rare hypoglycaemia interaction. FAERS shows 312 hypoglycaemia co-reports \u2014 non-trivial but expected given how often these two are paired. TWOSIDES PRR=1.92 sits just above the noise floor. All sources weakly agree; severity is MINOR with routine monitoring sufficient.",
+        "citations": [
+          {
+            "source": "openfda_label",
+            "finding_index": 0,
+            "quote": "ACE inhibitors may potentiate hypoglycaemia."
+          },
+          {
+            "source": "twosides",
+            "finding_index": 0,
+            "quote": "PRR=1.92."
+          }
+        ],
+        "predicted_but_unverified": false,
+        "sources_agreement": "agree"
+      }
+    ],
+    "new_pairs": [
+      [
+        "warfarin",
+        "aspirin"
+      ],
+      [
+        "fluoxetine",
+        "tramadol"
+      ],
+      [
+        "metformin",
+        "lisinopril"
+      ]
+    ],
+    "cached_pairs": [],
+    "patient_friendly_summary": "Two of your medication pairings need attention. Aspirin and warfarin together raise your risk of serious bleeding. Prozac and tramadol together can cause a rare but dangerous reaction called serotonin syndrome. Your metformin and lisinopril combination is mostly safe with normal check-ins."
+  }
+}

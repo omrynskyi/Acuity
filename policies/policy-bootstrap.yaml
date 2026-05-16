@@ -1,0 +1,100 @@
+# Acuity NemoClaw bootstrap policy.
+#
+# Used ONCE to install Python dependencies into the sandbox. Adds pypi.org
+# and Python ecosystem CDNs to the network policies, leaves everything else
+# the same as the production `policy.yaml`. Apply this, run `pip install`
+# inside the sandbox, then re-apply `policy.yaml` to seal it for the demo.
+
+version: 1
+
+filesystem_policy:
+  include_workdir: true
+  read_only:
+    - /usr
+    - /lib
+    - /proc
+    - /dev/urandom
+    - /app
+    - /etc
+    - /var/log
+  read_write:
+    - /sandbox
+    - /session
+    - /tmp
+    - /dev/null
+
+landlock:
+  compatibility: best_effort
+
+process:
+  run_as_user: sandbox
+  run_as_group: sandbox
+
+network_policies:
+
+  openfda:
+    name: openfda
+    endpoints:
+      - host: api.fda.gov
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
+  rxnorm:
+    name: rxnorm
+    endpoints:
+      - host: rxnav.nlm.nih.gov
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
+  pubchem:
+    name: pubchem
+    endpoints:
+      - host: pubchem.ncbi.nlm.nih.gov
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
+  nvidia:
+    name: nvidia
+    endpoints:
+      - host: integrate.api.nvidia.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: inference-api.nvidia.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
+  # Bootstrap-only: PyPI + the indices it redirects through. Removed by the
+  # production policy.yaml.
+  pypi_bootstrap:
+    name: pypi_bootstrap
+    endpoints:
+      - host: pypi.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: files.pythonhosted.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }

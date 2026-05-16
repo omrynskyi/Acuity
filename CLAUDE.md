@@ -1,76 +1,42 @@
-# Acuity Kanban System: AI Agent Skill Guide
+# Acuity — Backend Agent Instructions
 
-This guide describes how an AI agent should interact with the Acuity Kanban system to discover, acquire, and complete work.
+## Identity
+You are **Person A**, the backend/agents lead on Acuity. You are running on a Brev cloud instance.
 
-## System Overview
-The Acuity system is a task-based workflow managed via a FastAPI backend. Tasks are organized into sections and may have dependencies on other tasks.
+## Project Summary
+Acuity is an autonomous multi-agent drug interaction checker for polypharmacy patients. It fans out across three data sources (OpenFDA Label, OpenFDA FAERS, TWOSIDES) in parallel, synthesizes conflicting findings using Nemotron (`nemotron-3-super-120b-a12b`), and returns a severity-ranked report with citations. The same system is wrapped in NemoClaw for the bonus track, demonstrating PHI containment and API whitelist enforcement.
 
-**Base URL**: `http://localhost:8000`
+## Your Mission
+Work through **every task in `TASKS.md` assigned to Person A** (owner: `BE-*` and any `JOINT-*` tasks). Complete them in dependency order. Do not skip tasks. Do not leave a task half-finished before moving to the next.
 
----
+## Progress Tracking
+Use `TASKS.md` as your live progress tracker. When you begin a task, mark it `[IN PROGRESS]`. When it is done and acceptance criteria are met, mark it `[DONE]`. Do not use any Kanban system or localhost API.
 
-## 1. Discovery: Finding Work
+Marking convention — edit the task header line in TASKS.md:
+- Starting: `### BE-01 · Repo scaffold + dependencies` → `### [IN PROGRESS] BE-01 · Repo scaffold + dependencies`
+- Done: `### [DONE] BE-01 · Repo scaffold + dependencies`
 
-An agent should always start by finding the most relevant or actionable task.
+## Workflow
+1. Read `TASKS.md`, find the first BE or JOINT task that is not yet `[DONE]` and whose dependencies are all `[DONE]`.
+2. Mark it `[IN PROGRESS]` in `TASKS.md`.
+3. Read the task's Steps and Acceptance criteria carefully.
+4. Execute the work.
+5. Verify acceptance criteria are met.
+6. Mark it `[DONE]` in `TASKS.md`.
+7. Repeat.
 
-### Get Next Actionable Task
-Returns the first task that is currently in `todo` status and has all its dependencies met.
-- **Endpoint**: `GET /api/next`
-- **Use Case**: When you are ready to pick up a new task and don't have a specific ID in mind.
+## Key files
+- `TASKS.md` — task list and progress tracker
+- `PRD.md` — full product spec, architecture, schema, synthesis prompt design
+- `backend/` — all Python backend code goes here
+- `samples/` — real API response samples
+- `docs/` — data source notes, demo cases
+- `policies/` — NemoClaw YAML policy
+- `prompts/` — final synthesis prompt
 
-### Search for Tasks
-Search by specific ID or partial text.
-- **Endpoint**: `GET /api/search?id=<task_id>`
-- **Endpoint**: `GET /api/search?name=<partial_name>`
-- **Use Case**: When searching for a specific feature or verifying the status of a known task.
-
-### View All Tasks
-- **Endpoint**: `GET /api/tasks`
-
----
-
-## 2. Acquisition: Locking a Task
-
-Before performing any work, an agent **must** acquire a lock on the task. This prevents race conditions with other agents.
-
-- **Endpoint**: `POST /api/tasks/{task_id}/acquire`
-- **Body**: `{"agent": "your_agent_name"}`
-- **Success (200 OK)**: Returns a `lock_token`. **Store this token safely**; it is required for completion.
-- **Failure (400/409)**: If the task is blocked by dependencies or already locked, the API will return a descriptive error message.
-
----
-
-## 3. Execution & Context
-
-Once a task is acquired, read the details to understand the scope.
-
-### Fetch Task Details
-- **Endpoint**: `GET /api/tasks/{task_id}`
-- **Context Fields**:
-  - `description`: Detailed explanation of the task.
-  - `acceptance_criteria`: Requirements to consider the task "done".
-
----
-
-## 4. Completion: Finalizing the Task
-
-After the work is finished and verified, mark the task as done to unblock dependent tasks.
-
-- **Endpoint**: `POST /api/tasks/{task_id}/complete`
-- **Body**: `{"lock_token": "your_stored_token"}`
-- **Effect**: Moves the task to the `done` column and releases the lock.
-
-### Releasing a Task (Failure/Abort)
-If you cannot complete a task for any reason, release it so another agent can try.
-- **Endpoint**: `POST /api/tasks/{task_id}/release`
-- **Body**: `{"lock_token": "your_stored_token"}`
-
----
-
-## Standard Agent Workflow (Summary)
-
-1. **Find**: Call `GET /api/next` to find the highest priority actionable task.
-2. **Acquire**: Call `POST /api/tasks/{id}/acquire` with your name. Store the `lock_token`.
-3. **Read**: Call `GET /api/tasks/{id}` to get the `description` and `acceptance_criteria`.
-4. **Work**: Execute the required engineering steps (write code, tests, etc.).
-5. **Complete**: Call `POST /api/tasks/{id}/complete` with your `lock_token`.
+## Hard rules
+- Never use the Kanban API at localhost.
+- Protect synthesis prompt iteration (BE-09) above all else — do not cut it.
+- The JSON schema (`backend/schemas.py`) is the contract. Do not change it unilaterally after it is locked.
+- All API calls to external sources must be async.
+- Fall back gracefully rather than crashing when a source returns no data.
