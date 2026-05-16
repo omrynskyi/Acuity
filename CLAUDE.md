@@ -5,7 +5,7 @@ This guide describes how an AI agent should interact with the Acuity Kanban syst
 ## System Overview
 The Acuity system is a task-based workflow managed via a FastAPI backend. Tasks are organized into sections and may have dependencies on other tasks.
 
-**Base URL**: `http://localhost:8000`
+**Base URL**: `http://169.233.219.58:8000`
 
 ---
 
