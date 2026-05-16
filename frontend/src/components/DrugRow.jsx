@@ -1,28 +1,17 @@
 import styles from './DrugRow.module.css';
 
-const DOSES = {
-  warfarin: '5mg',
-  aspirin: '81mg',
-  metformin: '500mg',
-  lisinopril: '10mg',
-  fluoxetine: '20mg',
-  tramadol: '50mg',
-  atorvastatin: '40mg',
-};
-
-export default function DrugRow({ drug, onEdit }) {
+export default function DrugRow({ drug }) {
   const name = drug.generic_name || drug.input_name;
-  const dose = DOSES[name.toLowerCase()] ?? '';
+  const dose = drug.dose ?? '';
+  const freq = drug.frequency && drug.frequency !== 'daily' ? (drug.custom_frequency || drug.frequency) : null;
 
   return (
     <div className={styles.row}>
       <span className={styles.name}>{capitalize(name)}</span>
-      <span className={styles.dose}>{dose}</span>
-      {onEdit && (
-        <button className={styles.edit} onClick={() => onEdit(drug)} aria-label="Edit">
-          ✎
-        </button>
-      )}
+      <div className={styles.meta}>
+        {dose && <span className={styles.dose}>{dose}</span>}
+        {freq && <span className={styles.freq}>{freq}</span>}
+      </div>
     </div>
   );
 }

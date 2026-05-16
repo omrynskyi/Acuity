@@ -338,3 +338,276 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ── Edit Profile Modal ── */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+
+.modalCard {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-elevated);
+  padding: 28px 28px 24px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.modalGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.modalField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.modalFieldFull {
+  grid-column: span 2;
+}
+
+.modalLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.modalInput {
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  transition: border-color 0.15s;
+}
+
+.modalInput:focus {
+  outline: none;
+  border-color: #485d43;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modalCancelBtn {
+  padding: 9px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: none;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.modalCancelBtn:hover {
+  background: var(--color-border);
+}
+
+.modalSaveBtn {
+  padding: 9px 22px;
+  background: #2d4a2d;
+  color: white;
+  border: none;
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.modalSaveBtn:hover {
+  opacity: 0.88;
+}
+
+.modalSaveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Medicine Edit Modal ── */
+
+.medSearchWrap {
+  position: relative;
+}
+
+.medSearchInput {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.medSearchInput:focus {
+  outline: none;
+  border-color: #485d43;
+}
+
+.medSuggestList {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-elevated);
+  z-index: 10;
+  list-style: none;
+  overflow: hidden;
+}
+
+.medSuggestItem {
+  padding: 9px 14px;
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.medSuggestItem:hover {
+  background: var(--color-green-light);
+  color: var(--color-green);
+}
+
+.medEditList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.medEditRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 10px 12px;
+  flex-wrap: wrap;
+}
+
+.medEditName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  min-width: 110px;
+  flex: 1;
+}
+
+.medEditDose {
+  width: 76px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  font-family: inherit;
+  background: white;
+  color: var(--color-text-muted);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.medEditDose:focus {
+  outline: none;
+  border-color: #485d43;
+}
+
+.freqSelect {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  font-family: inherit;
+  background: white;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  appearance: auto;
+  transition: border-color 0.15s;
+}
+
+.freqSelect:focus {
+  outline: none;
+  border-color: #485d43;
+}
+
+.freqCustomInput {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  font-family: inherit;
+  background: white;
+  color: var(--color-text-muted);
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.freqCustomInput::placeholder {
+  color: var(--color-text-light);
+}
+
+.freqCustomInput:focus {
+  outline: none;
+  border-color: #485d43;
+}
+
+.medRemoveBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-light);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.medRemoveBtn:hover {
+  color: var(--color-red);
+}
+
+.medEmpty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 16px 0;
+}

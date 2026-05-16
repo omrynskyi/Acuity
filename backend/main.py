@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import asyncio
 import logging
 import os
 import uuid
@@ -24,6 +25,7 @@ from pydantic import BaseModel, Field
 load_dotenv()
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 
+from backend.db import create_profile, store_session  # noqa: E402
 from backend.graph import run_analysis, run_analysis_streaming  # noqa: E402
 from backend.memory import reset as reset_memory  # noqa: E402
 from backend.schemas import RegimenReport  # noqa: E402
@@ -50,6 +52,7 @@ class AnalyzeRequest(BaseModel):
         None,
         description="Opaque session id; reuse it on follow-up queries to get memory deltas.",
     )
+    profile_id: Optional[str] = Field(None, description="Supabase profile id for the requesting user.")
 
 
 class AnalyzeResponse(BaseModel):
@@ -67,6 +70,28 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
+class ProfileRequest(BaseModel):
+    user_id: str
+    name: str
+    age: int
+    sex: str = ""
+    height: str = ""
+    weight: str = ""
+
+
+@app.post("/api/profile")
+async def create_profile_endpoint(req: ProfileRequest) -> dict:
+    """Create a user profile using service role key (bypasses RLS — called right after signUp)."""
+    try:
+        profile = await asyncio.to_thread(
+            create_profile, req.user_id, req.name, req.age, req.sex, req.height, req.weight
+        )
+        return {"profile": profile}
+    except Exception as e:
+        logging.exception("create_profile failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 async def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
     session_id = req.session_id or str(uuid.uuid4())
@@ -75,9 +100,14 @@ async def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
     except Exception as e:  # noqa: BLE001
         logging.exception("analysis pipeline failed")
         raise HTTPException(status_code=500, detail=f"pipeline failure: {e}")
+    report = state["report"]
+    new_drug = req.drugs[-1] if req.drugs else ""
+    asyncio.create_task(
+        store_session(session_id, new_drug, req.drugs, report.model_dump(), req.profile_id)
+    )
     return AnalyzeResponse(
         session_id=session_id,
-        report=state["report"],
+        report=report,
         durations_ms=state["durations_ms"],
     )
 

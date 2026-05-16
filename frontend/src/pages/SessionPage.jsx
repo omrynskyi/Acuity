@@ -3,8 +3,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, Mail } from 'lucide-react';
 import DrugStatusCard from '../components/DrugStatusCard.jsx';
 import InteractionCard from '../components/InteractionCard.jsx';
-import { streamAnalyzeRegimen, getSourceFindings } from '../api/index.js';
-import fixtures from '../data/fixtures.json';
+import { streamAnalyzeRegimen } from '../api/index.js';
 import styles from './SessionPage.module.css';
 
 const SOURCES = [
@@ -19,7 +18,13 @@ export default function SessionPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { newDrug = 'Atorvastatin', regimen = [] } = location.state ?? {};
+  const {
+    newDrug = 'Atorvastatin',
+    regimen = [],
+    profileId = null,
+    doctor = 'Dr. Zhang',
+    doctorEmail = 'zhang@stanfordhealth.org',
+  } = location.state ?? {};
 
   const [phase, setPhase] = useState('loading');
   const [doneCount, setDoneCount] = useState(0);
@@ -30,17 +35,11 @@ export default function SessionPage() {
   const [streamPhase, setStreamPhase] = useState('idle');
   const calledRef = useRef(false);
 
-  const existingDrugs = regimen.length > 0
-    ? regimen
-    : fixtures.regimen_report.regimen.map((d) => d.generic_name || d.input_name);
-
-  const sourceFindings = getSourceFindings();
-
   useEffect(() => {
     if (calledRef.current) return;
     calledRef.current = true;
 
-    const allDrugs = [...existingDrugs, newDrug.toLowerCase()];
+    const allDrugs = [...regimen, newDrug.toLowerCase()];
 
     streamAnalyzeRegimen(allDrugs, id !== 'pending' ? id : undefined, {
       onEvent({ type, data }) {
@@ -117,15 +116,15 @@ export default function SessionPage() {
         </div>
 
         <div className={styles.cardsRow}>
-          {existingDrugs.map((drug, i) => {
+          {regimen.map((drug, i) => {
             const isDone = isDrugDone(drug);
-            const span = bentoSpan(i, existingDrugs.length);
+            const span = bentoSpan(i, regimen.length);
             return (
               <div key={drug} style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
                 <DrugStatusCard
                   drugName={drug}
                   status={isDone ? 'done' : 'progress'}
-                  snippet={isDone ? snippetForDrug(drug) : undefined}
+                  snippet={isDone ? 'No interactions found with your current medications' : undefined}
                   sources={!isDone ? SOURCES : undefined}
                 />
               </div>
@@ -138,8 +137,7 @@ export default function SessionPage() {
 
   /* ── Report ──────────────────────────────────────────────────────────── */
 
-  const r = report ?? fixtures.regimen_report;
-  const topMajor = r.interactions.find(
+  const topMajor = report.interactions.find(
     (ix) => ix.severity === 'major' || ix.severity === 'contraindicated'
   );
 
@@ -153,8 +151,8 @@ export default function SessionPage() {
         <p className="text-section-label">Your Drug Interaction Report for:</p>
         <h1 className="text-title mt-4">{capitalize(newDrug)}</h1>
 
-        {r.patient_friendly_summary && (
-          <p className="text-body mt-16 mb-24">{r.patient_friendly_summary}</p>
+        {report.patient_friendly_summary && (
+          <p className="text-body mt-16 mb-24">{report.patient_friendly_summary}</p>
         )}
 
         {topMajor && (
@@ -169,13 +167,12 @@ export default function SessionPage() {
           </div>
         )}
 
-        {/* Doctor card — uses design system .card */}
         <div className="card mb-32" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className={styles.doctorLeft}>
             <div className={styles.gmailIcon}>M</div>
             <div>
-              <p className="text-body" style={{ fontWeight: 600 }}>Dr. Zhang</p>
-              <p className="text-secondary">zhang@stanfordhealth.org</p>
+              <p className="text-body" style={{ fontWeight: 600 }}>{doctor}</p>
+              <p className="text-secondary">{doctorEmail}</p>
             </div>
           </div>
           <button className="btn-primary">
@@ -199,14 +196,14 @@ export default function SessionPage() {
 
         <p className={styles.sectionHeading}>All interactions checked:</p>
         <div className={styles.interactionList}>
-          {r.interactions.map((ix) => (
+          {report.interactions.map((ix) => (
             <InteractionCard key={ix.drug_pair.join('-')} interaction={ix} />
           ))}
         </div>
 
         <div className={styles.summaryStrip}>
-          {existingDrugs.map((drug) => {
-            const danger = r.interactions.some(
+          {regimen.map((drug) => {
+            const danger = report.interactions.some(
               (ix) =>
                 ix.drug_pair.includes(drug.toLowerCase()) &&
                 (ix.severity === 'major' || ix.severity === 'contraindicated')
@@ -234,15 +231,12 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-// Returns the grid-column span for card at `index` out of `total`,
-// so the last incomplete row always fills all 3 columns (bento style).
 function bentoSpan(index, total) {
   const COLS = 3;
   const remainder = total % COLS;
-  if (remainder === 0) return 1;            // perfect grid, no spanning needed
+  if (remainder === 0) return 1;
   const lastRowStart = total - remainder;
-  if (index < lastRowStart) return 1;       // not in the last row
-  if (remainder === 1) return 3;            // lone card → full width
-  // remainder === 2: split as 1 + 2 so the last card is wider
+  if (index < lastRowStart) return 1;
+  if (remainder === 1) return 3;
   return index === lastRowStart ? 1 : 2;
 }
