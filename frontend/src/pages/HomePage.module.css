@@ -337,11 +337,32 @@
 
 /* ── Reports ── */
 
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
 .sectionTitle {
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin: 0;
   color: var(--color-text);
+}
+
+.viewAllBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  transition: color 0.15s;
+}
+
+.viewAllBtn:hover {
+  color: var(--color-green);
 }
 
 .reportList {

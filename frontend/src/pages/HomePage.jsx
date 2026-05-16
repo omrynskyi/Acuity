@@ -325,7 +325,12 @@ export default function HomePage() {
 
         {/* My Reports */}
         <section>
-          <h2 className={styles.sectionTitle}>My Reports</h2>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>My Reports</h2>
+            <button className={styles.viewAllBtn} onClick={() => navigate('/reports')}>
+              View All <ChevronRight size={14} />
+            </button>
+          </div>
           <div className={styles.reportList}>
             {pastSessions.map((session) => {
               const isMajor =

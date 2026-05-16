@@ -1,0 +1,198 @@
+.page {
+  min-height: 100vh;
+  position: relative;
+  background-size: cover;
+  background-position: center 60%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(244, 244, 241, 0.08) 0%,
+    rgba(244, 244, 241, 0.55) 40%,
+    rgba(244, 244, 241, 0.88) 70%,
+    var(--color-bg) 100%
+  );
+  pointer-events: none;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1000px;
+  padding: 80px 24px 40px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: var(--color-text-muted);
+}
+
+.header {
+  margin-bottom: 32px;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin-bottom: 12px;
+  transition: color 0.15s;
+}
+
+.backBtn:hover {
+  color: var(--color-green);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--color-text);
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.searchBox {
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-light);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 12px 10px 40px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: var(--color-surface);
+  transition: border-color 0.15s;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-green);
+}
+
+.filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.reportCard {
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.reportCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elevated);
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.drugName {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.date {
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dotDanger { background: var(--color-red); }
+.dotSafe   { background: var(--color-green); }
+
+.statusLabel {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.statusDanger { color: var(--color-red); }
+.statusSafe   { color: var(--color-green); }
+
+.empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 0;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+@media (max-width: 640px) {
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

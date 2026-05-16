@@ -104,6 +104,16 @@ export async function fetchRecentSessions(profileId, limit = 6) {
   return data;
 }
 
+export async function fetchAllSessions(profileId) {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id, new_drug, generated_at, overall_severity, drugs_checked')
+    .eq('profile_id', profileId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchSession(sessionId) {
   const { data, error } = await supabase
     .from('sessions')
