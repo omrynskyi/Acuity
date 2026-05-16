@@ -183,3 +183,177 @@
   margin-top: 20px;
   font-size: 14px;
 }
+
+/* ── Report title row ── */
+
+.reportTitleRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.addToListBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  background: var(--color-green);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+
+.addToListBtn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.addToListBtn:disabled {
+  cursor: default;
+}
+
+.addedBtn {
+  background: var(--color-green-light);
+  color: var(--color-green);
+}
+
+/* ── Add warning modal ── */
+
+.warningOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+  backdrop-filter: blur(2px);
+}
+
+.warningModal {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 28px 24px 24px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.warningModalHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.warningModalIcon {
+  color: var(--color-red);
+  flex-shrink: 0;
+}
+
+.warningModalTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-red);
+}
+
+.warningModalBody {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.warningDoctorCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--color-green-light);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+}
+
+.warningDoctorInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.warningDoctorName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.warningDoctorEmail {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.warningDoctorSendBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-xs);
+  background: var(--color-green);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.warningDoctorSendBtn:hover {
+  opacity: 0.88;
+}
+
+.warningModalActions {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.warningCancelBtn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text-muted);
+}
+
+.warningCancelBtn:hover {
+  background: var(--color-bg);
+}
+
+.warningAddBtn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: var(--radius-xs);
+  background: var(--color-red-light);
+  color: var(--color-red);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.warningAddBtn:hover:not(:disabled) {
+  background: #f9d2ce;
+}
+
+.warningAddBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

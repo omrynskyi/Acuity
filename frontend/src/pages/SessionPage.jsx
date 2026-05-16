@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Mail } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Mail, PlusCircle, CheckCircle } from 'lucide-react';
 import DrugStatusCard from '../components/DrugStatusCard.jsx';
 import InteractionCard from '../components/InteractionCard.jsx';
 import { streamAnalyzeRegimen } from '../api/index.js';
-import { fetchSession, fetchProfile } from '../lib/db.js';
+import { fetchSession, fetchProfile, fetchRegimen, addDrugToRegimen } from '../lib/db.js';
 import styles from './SessionPage.module.css';
 
 const SOURCE_META = {
@@ -37,6 +37,10 @@ export default function SessionPage() {
   const [streamPhase, setStreamPhase] = useState('idle');
   const [sourceUpdates, setSourceUpdates] = useState([]);
   const calledRef = useRef(false);
+
+  const [addedToList, setAddedToList] = useState(false);
+  const [addingToList, setAddingToList] = useState(false);
+  const [showAddWarning, setShowAddWarning] = useState(false);
 
   // Overrides populated when loading a saved report (no router state).
   const [displayNewDrug, setDisplayNewDrug] = useState(null);
@@ -117,6 +121,52 @@ export default function SessionPage() {
     return false;
   }
 
+  async function doAddToList() {
+    if (!report) return;
+    setAddingToList(true);
+    try {
+      const profile = await fetchProfile();
+      if (!profile) return;
+      const existing = await fetchRegimen(profile.id);
+      const alreadyIn = existing.some(
+        d => (d.generic_name || d.input_name).toLowerCase() === activeNewDrug.toLowerCase()
+      );
+      if (!alreadyIn) {
+        await addDrugToRegimen(profile.id, {
+          input_name: activeNewDrug.toLowerCase(),
+          generic_name: activeNewDrug.toLowerCase(),
+          dose: null,
+          frequency: 'daily',
+          sort_order: existing.length,
+        });
+      }
+      setAddedToList(true);
+    } finally {
+      setAddingToList(false);
+      setShowAddWarning(false);
+    }
+  }
+
+  function handleAddToList() {
+    if (!report) return;
+    const hasDanger = report.interactions.some(
+      ix => ix.severity === 'major' || ix.severity === 'contraindicated'
+    );
+    if (hasDanger) {
+      setShowAddWarning(true);
+    } else {
+      doAddToList();
+    }
+  }
+
+  function sendToDoctor() {
+    const subject = encodeURIComponent(`Drug Interaction Alert: ${capitalize(activeNewDrug)}`);
+    const body = encodeURIComponent(
+      `Dear ${activeDoctor},\n\nI am considering adding ${capitalize(activeNewDrug)} to my current regimen and the Acuity interaction checker flagged a dangerous interaction.\n\nCould you please review this before I proceed?\n\nThank you.`
+    );
+    window.open(`mailto:${activeDoctorEmail}?subject=${subject}&body=${body}`);
+  }
+
   if (error) {
     return (
       <div className={styles.page}>
@@ -194,8 +244,24 @@ export default function SessionPage() {
           <ArrowLeft size={16} /> Home
         </button>
 
-        <p className="text-section-label">Your Drug Interaction Report for:</p>
-        <h1 className="text-title mt-4">{capitalize(activeNewDrug)}</h1>
+        <div className={styles.reportTitleRow}>
+          <div>
+            <p className="text-section-label">Your Drug Interaction Report for:</p>
+            <h1 className="text-title mt-4">{capitalize(activeNewDrug)}</h1>
+          </div>
+          <button
+            className={`${styles.addToListBtn} ${addedToList ? styles.addedBtn : ''}`}
+            onClick={handleAddToList}
+            disabled={addingToList || addedToList}
+          >
+            {addedToList
+              ? <><CheckCircle size={15} /> Added to My Medicine List</>
+              : addingToList
+              ? 'Adding…'
+              : <><PlusCircle size={15} /> Add to My Medicine List</>
+            }
+          </button>
+        </div>
 
         {report.patient_friendly_summary && (
           <p className="text-body mt-16 mb-24">{report.patient_friendly_summary}</p>
@@ -286,6 +352,42 @@ export default function SessionPage() {
           })}
         </div>
       </div>
+
+      {showAddWarning && (
+        <div className={styles.warningOverlay} onClick={() => setShowAddWarning(false)}>
+          <div className={styles.warningModal} onClick={e => e.stopPropagation()}>
+            <div className={styles.warningModalHeader}>
+              <AlertCircle size={18} className={styles.warningModalIcon} />
+              <h2 className={styles.warningModalTitle}>Dangerous Combination</h2>
+            </div>
+            <p className={styles.warningModalBody}>
+              {capitalize(activeNewDrug)} has a dangerous interaction with your current medications.
+              Contact your doctor before starting this medication.
+            </p>
+
+            {activeDoctorEmail && (
+              <div className={styles.warningDoctorCard}>
+                <div className={styles.warningDoctorInfo}>
+                  <p className={styles.warningDoctorName}>{activeDoctor}</p>
+                  <p className={styles.warningDoctorEmail}>{activeDoctorEmail}</p>
+                </div>
+                <button className={styles.warningDoctorSendBtn} onClick={sendToDoctor}>
+                  <Mail size={13} /> Send Message
+                </button>
+              </div>
+            )}
+
+            <div className={styles.warningModalActions}>
+              <button className={styles.warningCancelBtn} onClick={() => setShowAddWarning(false)}>
+                Cancel
+              </button>
+              <button className={styles.warningAddBtn} onClick={doAddToList} disabled={addingToList}>
+                {addingToList ? 'Adding…' : 'Add Anyway'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

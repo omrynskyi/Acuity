@@ -98,6 +98,7 @@ export async function fetchRecentSessions(profileId, limit = 6) {
     .from('sessions')
     .select('id, new_drug, generated_at, overall_severity, drugs_checked')
     .eq('profile_id', profileId)
+    .is('archived_at', null)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -109,9 +110,61 @@ export async function fetchAllSessions(profileId) {
     .from('sessions')
     .select('id, new_drug, generated_at, overall_severity, drugs_checked')
     .eq('profile_id', profileId)
+    .is('archived_at', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
+}
+
+export async function fetchArchivedSessions(profileId) {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id, new_drug, generated_at, overall_severity, drugs_checked')
+    .eq('profile_id', profileId)
+    .not('archived_at', 'is', null)
+    .order('archived_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function archiveSession(sessionId) {
+  const { error } = await supabase
+    .from('sessions')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', sessionId);
+  if (error) throw error;
+}
+
+export async function unarchiveSession(sessionId) {
+  const { error } = await supabase
+    .from('sessions')
+    .update({ archived_at: null })
+    .eq('id', sessionId);
+  if (error) throw error;
+}
+
+export async function deleteSession(sessionId) {
+  const { error } = await supabase
+    .from('sessions')
+    .delete()
+    .eq('id', sessionId);
+  if (error) throw error;
+}
+
+export async function deleteSessions(sessionIds) {
+  const { error } = await supabase
+    .from('sessions')
+    .delete()
+    .in('id', sessionIds);
+  if (error) throw error;
+}
+
+export async function unarchiveSessions(sessionIds) {
+  const { error } = await supabase
+    .from('sessions')
+    .update({ archived_at: null })
+    .in('id', sessionIds);
+  if (error) throw error;
 }
 
 export async function fetchSession(sessionId) {
