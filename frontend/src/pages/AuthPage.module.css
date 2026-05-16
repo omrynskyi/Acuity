@@ -1,0 +1,335 @@
+.page {
+  min-height: 100vh;
+  background-image: url('/hero.jpg');
+  background-size: cover;
+  background-position: center 40%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+.logo {
+  font-family: 'Nanum Myeongjo', Georgia, serif;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+  margin-bottom: 14px;
+  opacity: 0.85;
+}
+
+.headline {
+  font-family: 'Nanum Myeongjo', Georgia, serif;
+  font-size: 48px;
+  font-weight: 400;
+  color: var(--color-text);
+  margin-bottom: 40px;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.headline strong {
+  font-weight: 700;
+}
+
+.card {
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-elevated);
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #485d43;
+}
+
+.input::placeholder {
+  color: var(--color-text-light);
+}
+
+/* Custom dropdown */
+.customSelect {
+  position: relative;
+}
+
+.selectTrigger {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--color-bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.selectTrigger:focus,
+.selectTriggerOpen {
+  outline: none;
+  border-color: #485d43;
+}
+
+.selectValue {
+  color: var(--color-text);
+}
+
+.selectPlaceholder {
+  color: var(--color-text-light);
+}
+
+.chevron {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.selectList {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-elevated);
+  z-index: 100;
+  list-style: none;
+  overflow: hidden;
+}
+
+.selectOption {
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.selectOption:hover {
+  background: var(--color-bg);
+}
+
+.selectOptionActive {
+  background: var(--color-green-light);
+  color: var(--color-green);
+  font-weight: 500;
+}
+
+/* Height compound input */
+.heightWrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 0 10px;
+  background: var(--color-bg);
+  transition: border-color 0.15s;
+}
+
+.heightWrap:focus-within {
+  border-color: #485d43;
+}
+
+.heightInput {
+  width: 36px;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text);
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.heightInput::-webkit-outer-spin-button,
+.heightInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.heightInput:focus {
+  outline: none;
+}
+
+.heightInput:focus::placeholder {
+  color: transparent;
+}
+
+.heightUnit {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* Weight with suffix */
+.suffixWrap {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.suffixWrap:focus-within {
+  border-color: #485d43;
+}
+
+.suffixInput {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text);
+  -moz-appearance: textfield;
+}
+
+.suffixInput::-webkit-outer-spin-button,
+.suffixInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.suffixInput:focus {
+  outline: none;
+}
+
+.suffix {
+  padding: 0 14px 0 4px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.primaryBtn {
+  width: 100%;
+  padding: 12px;
+  background: #2d4a2d;
+  color: white;
+  border: none;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity 0.15s;
+}
+
+.primaryBtn:hover {
+  opacity: 0.88;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.googleBtn {
+  width: 100%;
+  padding: 11px;
+  background: white;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+
+.googleBtn:hover {
+  background: var(--color-bg);
+}
+
+.googleLogo {
+  width: 18px;
+  height: 18px;
+}
+
+.divider {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 20px 0 0;
+}
+
+.switchLink {
+  background: none;
+  border: none;
+  color: #485d43;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  margin-left: 4px;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--color-red);
+  text-align: center;
+  margin-top: 10px;
+}
