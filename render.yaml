@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: acuity-backend
+    runtime: python
+    pythonVersion: "3.12"
+    buildCommand: pip install -e .
+    startCommand: bash scripts/prestart.sh && uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    plan: starter   # $7/mo — no spin-down; upgrade to standard for more RAM if needed
+    envVars:
+      # --- Required: set these in the Render dashboard ---
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: BRAVE_API_KEY
+        sync: false
+      # Public URL to download decagon.sqlite 
+      - key: DECAGON_DB_URL
+        sync: false
+      # Set to your Vercel/Netlify frontend URL after deploy, e.g. https://acuity.vercel.app
+      - key: CORS_ALLOW_ORIGINS
+        sync: false
+
+      # --- Optional: defaults shown ---
+      - key: NEMOTRON_SUPER_MODEL
+        value: nvidia/nemotron-3-super-120b-a12b
+      - key: NEMOTRON_NANO_MODEL
+        value: nvidia/nemotron-3-nano-30b-a3b
+      - key: LOG_LEVEL
+        value: INFO
