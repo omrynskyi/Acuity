@@ -27,7 +27,7 @@
   z-index: 1;
   width: 100%;
   max-width: 1000px;
-  padding: 80px 24px 40px;
+  padding: max(80px, env(safe-area-inset-top)) 24px max(40px, env(safe-area-inset-bottom));
 }
 
 .loading {
@@ -383,7 +383,7 @@
 
 @media (max-width: 640px) {
   .container {
-    padding: 60px 16px 40px;
+    padding: max(60px, env(safe-area-inset-top)) 16px max(40px, env(safe-area-inset-bottom));
   }
 
   .controls {
