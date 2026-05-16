@@ -9,9 +9,9 @@
   padding-bottom: 48px;
 }
 
-/* full-page gradient overlay — fixed so it never scrolls with content */
-.page::before {
-  content: '';
+/* Real DOM element — iOS Safari doesn't reliably apply position:fixed to pseudo-elements
+   on non-html/body ancestors. */
+.gradient {
   position: fixed;
   inset: 0;
   background: linear-gradient(
@@ -24,6 +24,8 @@
   );
   pointer-events: none;
   z-index: 0;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 /* ── Logo ── */
@@ -262,7 +264,7 @@
 
 .doctorLabel {
   font-size: 10px;
-  text-transform: uppercase;
+
   letter-spacing: 0.09em;
   color: var(--color-text-light);
   margin-bottom: 3px;

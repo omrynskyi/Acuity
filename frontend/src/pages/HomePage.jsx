@@ -220,12 +220,14 @@ export default function HomePage() {
 
   if (!profile) return (
     <div className={styles.page}>
+      <div className={styles.gradient} />
       <div className={styles.logo}>Acuity</div>
     </div>
   );
 
   return (
     <div className={styles.page}>
+      <div className={styles.gradient} />
       <div className={styles.logo}>Acuity</div>
       <button
         onClick={() => navigate('/settings')}
