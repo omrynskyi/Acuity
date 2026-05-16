@@ -101,12 +101,24 @@ network_policies:
     binaries:
       - { path: "/**" }
 
-  # Acuity API — used by the Analyze skill.
+  # Acuity API — used by the Analyze and DB skills.
   # TODO: replace placeholder with production Vercel host from ACUITY_API_BASE_URL.
   acuity_api:
     name: acuity_api
     endpoints:
       - host: acuity.vercel.app  # TODO fill from ACUITY_API_BASE_URL
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
+  # Supabase — backend DB queries only (service key, bypasses RLS).
+  supabase:
+    name: supabase
+    endpoints:
+      - host: blnxyzbmwuxboruticrg.supabase.co
         port: 443
         protocol: rest
         enforcement: enforce

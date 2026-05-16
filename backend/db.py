@@ -130,6 +130,96 @@ def create_profile(user_id: str, name: str, age: int, sex: str, height: str, wei
     return res.data[0]
 
 
+# --------------------------------------------------------------------------- #
+# User-data queries (called by backend/routers/user.py)
+# All queries are scoped by profile_id — no user can see another user's rows.
+# --------------------------------------------------------------------------- #
+
+def update_profile_fields(profile_id: str, patch: dict) -> dict:
+    res = _client().table("profiles").update(patch).eq("id", profile_id).execute()
+    return res.data[0]
+
+
+def get_regimen(profile_id: str) -> list[dict]:
+    res = (
+        _client().table("regimen")
+        .select("*")
+        .eq("profile_id", profile_id)
+        .is_("removed_at", "null")
+        .order("sort_order")
+        .execute()
+    )
+    return res.data
+
+
+def add_regimen_entry(profile_id: str, drug: str, dose: str | None, frequency: str | None) -> dict:
+    res = _client().table("regimen").insert({
+        "profile_id": profile_id,
+        "input_name": drug,
+        "dose": dose,
+        "frequency": frequency,
+        "found": False,
+        "brand_names": [],
+    }).execute()
+    return res.data[0]
+
+
+def soft_delete_regimen(profile_id: str, entry_id: str) -> None:
+    from datetime import datetime, timezone
+    _client().table("regimen").update(
+        {"removed_at": datetime.now(timezone.utc).isoformat()}
+    ).eq("id", entry_id).eq("profile_id", profile_id).execute()
+
+
+def update_regimen_entry(profile_id: str, entry_id: str, patch: dict) -> dict:
+    res = (
+        _client().table("regimen")
+        .update(patch)
+        .eq("id", entry_id)
+        .eq("profile_id", profile_id)
+        .execute()
+    )
+    return res.data[0]
+
+
+def list_user_sessions(profile_id: str, limit: int = 20) -> list[dict]:
+    res = (
+        _client().table("sessions")
+        .select("id,new_drug,drugs_checked,overall_severity,generated_at,created_at")
+        .eq("profile_id", profile_id)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return res.data
+
+
+def get_user_session(profile_id: str, session_id: str) -> dict | None:
+    res = (
+        _client().table("sessions")
+        .select("*")
+        .eq("id", session_id)
+        .eq("profile_id", profile_id)
+        .maybe_single()
+        .execute()
+    )
+    return res.data
+
+
+def get_session_interactions(profile_id: str, session_id: str) -> list[dict]:
+    sess = get_user_session(profile_id, session_id)
+    if not sess:
+        return []
+    res = (
+        _client().table("interactions")
+        .select("*")
+        .eq("session_id", session_id)
+        .order("sort_order")
+        .execute()
+    )
+    return res.data
+
+
 async def store_session(
     session_id: str,
     new_drug: str,

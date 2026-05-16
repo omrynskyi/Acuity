@@ -30,6 +30,7 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 from backend.db import create_profile, generate_pat_for_user, get_profile_by_pat, get_profile_by_user_id, get_regimen_for_profile, store_session  # noqa: E402
 from backend.graph import run_analysis, run_analysis_streaming  # noqa: E402
 from backend.memory import reset as reset_memory  # noqa: E402
+from backend.routers.user import router as user_router  # noqa: E402
 from backend.schemas import RegimenReport  # noqa: E402
 
 
@@ -71,6 +72,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(user_router, prefix="/api/user", tags=["user"])
 
 
 # --------------------------------------------------------------------------- #

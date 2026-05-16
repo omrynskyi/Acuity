@@ -259,6 +259,74 @@ class DeepResearchReport(BaseModel):
     )
 
 
+# --------------------------------------------------------------------------- #
+# User-data schemas (used by /api/user/* routes)
+# --------------------------------------------------------------------------- #
+
+class ProfileOut(BaseModel):
+    """Public view of a user profile row."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    name: str
+    age: Optional[int] = None
+    sex: Optional[str] = None
+    height: Optional[str] = None
+    weight: Optional[str] = None
+    doctor: Optional[str] = None
+    doctor_email: Optional[str] = None
+
+
+class RegimenEntry(BaseModel):
+    """One row from the regimen table (active medications)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    profile_id: str
+    input_name: str
+    rxcui: Optional[str] = None
+    generic_name: Optional[str] = None
+    brand_names: list[str] = Field(default_factory=list)
+    dose: Optional[str] = None
+    frequency: Optional[str] = None
+    found: bool = False
+    added_at: Optional[datetime] = None
+    removed_at: Optional[datetime] = None
+
+
+class SessionSummary(BaseModel):
+    """Lightweight summary of a past analysis session."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    new_drug: Optional[str] = None
+    drugs_checked: list[str] = Field(default_factory=list)
+    overall_severity: Optional[str] = None
+    generated_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+
+class InteractionRow(BaseModel):
+    """One row from the interactions table."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    session_id: str
+    drug_a: str
+    drug_b: str
+    severity: str
+    headline: str
+    reasoning: Optional[str] = None
+    sources_agreement: Optional[str] = None
+    predicted_but_unverified: bool = False
+    citations: list[dict] = Field(default_factory=list)
+    sort_order: int = 0
+
+
 __all__ = [
     "Citation",
     "Confidence",
@@ -269,9 +337,13 @@ __all__ = [
     "Evidence",
     "Finding",
     "FindingType",
+    "InteractionRow",
     "NormalizedDrug",
+    "ProfileOut",
+    "RegimenEntry",
     "RegimenReport",
     "ResearchCitation",
+    "SessionSummary",
     "Severity",
     "SeverityHint",
     "SourceFindings",
