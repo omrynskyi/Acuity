@@ -11,17 +11,17 @@
 
 ## 1. What we're building
 
-An autonomous multi-agent system that takes a patient's medication list, queries multiple heterogeneous medical data sources in parallel, reconciles conflicting findings with Nemotron, and returns a risk-ranked drug interaction report with citations.
+An autonomous multi-agent system that takes a patient's own medication list, queries multiple heterogeneous data sources in parallel, reconciles conflicting findings with Nemotron, and returns a plain-language risk report that helps the patient understand their drug interactions and know what to ask their doctor.
 
 The product runs as an OpenClaw multi-agent system orchestrated with LangGraph (or equivalent), powered by Nemotron models (`nemotron-3-super-120b-a12b` for synthesis reasoning, `nemotron-3-nano-30b-a3b` for source agents if latency matters), deployed on Brev. The same agent system is wrapped in NemoClaw via OpenShell policies for the bonus track, demonstrating PHI containment and API whitelist enforcement.
 
 ## 2. Why this matters
 
-Polypharmacy (5+ concurrent meds) affects ~40% of adults 65+. A 10-drug regimen has 45 unique drug pairs that need to be checked. Physicians have roughly 5 seconds to review a medication list in a clinical encounter. Preventable medication errors are linked to ~125K deaths per year in the US.
+Polypharmacy (5+ concurrent meds) affects ~40% of adults 65+. A 10-drug regimen has 45 unique drug pairs that need to be checked. Patients are sent home with complex medication regimens and no practical way to understand what they're taking together. Preventable medication errors are linked to ~125K deaths per year in the US — and most patients never know there was a risk.
 
-The bottleneck isn't medical knowledge, it's scale and synthesis. No single data source has full coverage. Regulatory labels lag behind real-world evidence. Adverse event databases are noisy. Curated academic datasets have limited drug coverage. A clinician can't manually reconcile across all of them in real time.
+Patients can't manually reconcile drug interactions across regulatory labels, adverse event databases, and research datasets. Even if they Google each pair, they get clinical jargon, conflicting results, and no synthesis.
 
-A multi-agent system can.
+A multi-agent system can give every patient the same quality of analysis a pharmacist would apply — in plain language, in seconds.
 
 ## 3. Goals and non-goals
 
@@ -30,15 +30,16 @@ A multi-agent system can.
 - Parallel fan-out across 3+ heterogeneous data sources
 - Nemotron-powered synthesis that explicitly reasons about source disagreement
 - Persistent memory across queries (regimen tracking)
-- Severity-ranked output with source citations
+- Plain-language patient report as the primary output, severity-ranked with source citations
 - NemoClaw-wrapped deployment demonstrating at least one privacy or security control
 
 ### Non-goals
 - Production clinical validation
 - EHR / FHIR integration (architecture supports it, not built)
 - Custom ML model training from scratch
-- Real medical advice (this is a research prototype, demo only)
+- Replacing medical advice or prescribing decisions (this is a research prototype, demo only)
 - Coverage of every drug in existence (demo cases curated for source coverage)
+- Clinician-facing workflow tools (out of scope for this demo)
 
 ## 4. Success criteria
 
@@ -57,15 +58,15 @@ Stretch:
 
 ## 5. Users and use cases
 
-Primary user for the demo narrative: a clinical pharmacist reviewing a polypharmacy patient's regimen before discharge. They need to know which drug pairs in the regimen carry interaction risk, ranked by severity, with evidence.
+Primary user for the demo narrative: a patient managing multiple medications who wants to understand what they're taking together before their next doctor's appointment. They are not a clinician. They need plain-language explanations of which drug pairs carry risk, how serious those risks are, and what questions to bring to their doctor.
 
 Demo flow they care about:
-1. Input the regimen
-2. See the system query multiple sources in parallel
-3. Get a ranked report with citations
-4. Add a new medication, see only the new pairs re-evaluated
+1. Enter their medication list (names they actually know — brand or generic)
+2. See the system working on their behalf, pulling from multiple sources
+3. Get a ranked, plain-language report: what's risky, how risky, and why
+4. Add a new prescription, see only the new pairs re-evaluated
 
-We are not building for: patients self-checking (legal exposure), real-time prescribing (latency and reliability), or research data mining (out of scope).
+We are not building for: real-time prescribing, EHR integration, or research data mining (all out of scope).
 
 ## 6. Architecture overview
 
@@ -90,8 +91,8 @@ SYNTHESIS AGENT  (Nemotron)
   └── produce ranked report with citations
 
 OUTPUT AGENT
-  ├── clinician view (technical, severity-color-coded)
-  └── patient view (plain language, same data)
+  ├── patient view (plain language, primary — what this means for you, what to ask your doctor)
+  └── detailed view (technical severity scores and source citations, secondary)
 
 MEMORY LAYER
   └── regimen persistence across queries (OpenClaw memory)
@@ -174,9 +175,11 @@ This is the centerpiece. Most engineering time goes here.
 ### Outputs
 A structured report with:
 - Per-pair severity score (major / moderate / minor / contraindicated / no_concern)
-- Reasoning trace explaining why each pair received its score
+- Plain-language explanation of each risk (primary output, written for a patient)
+- Reasoning trace explaining why each pair received its score (shown in detailed view)
 - Explicit notes when sources disagree
 - Citations pointing to specific findings from specific sources
+- "What to ask your doctor" prompts for flagged pairs
 - A "predicted but unverified" flag for findings supported by some sources but not others
 
 ### Prompt design principles
@@ -217,11 +220,11 @@ React, no Tailwind. Styling approach TBD (CSS modules, vanilla CSS, or a small C
 Design not yet done. Needs a separate pass before hackathon, ideally a rough mockup or wireframe locked at H0 so frontend work isn't blocked on design decisions during the build.
 
 ### What the frontend needs to do
-- Take a regimen as input
+- Take a regimen as input (accept brand names and generics — patients don't know the difference)
 - Show live agent activity during fan-out (which agents are running, completed, errored)
 - Highlight the synthesis step as a distinct moment (the demo's intellectual peak)
-- Display the synthesized report with severity ranking, expandable evidence, and source citations
-- Toggle between clinician and patient views of the same report
+- Display the synthesized report in plain language as the default view, severity-ranked with expandable evidence and "what to ask your doctor" prompts
+- Toggle to a detailed view showing source citations and technical severity scores
 - Show memory state on follow-up queries (which pairs are new, which are cached)
 - For the NemoClaw track demo, show evidence of the policy/privacy control in action
 
@@ -236,7 +239,7 @@ Design not yet done. Needs a separate pass before hackathon, ideally a rough moc
 - How to communicate severity (color is obvious but limited, what else?)
 - How to make source disagreement visually legible
 - How to show the memory delta on follow-up queries
-- Typography and identity (the brief is medical-adjacent but this is a hackathon prototype, lean into character not corporate)
+- Typography and identity (the brief is patient-empowerment, not clinical — warm and approachable, not sterile hospital aesthetic)
 - NemoClaw control demonstration (how does "PHI redacted" or "tool restricted" look on screen?)
 
 Scope discipline: function over polish during the build itself. Three hours max on frontend implementation after the agent graph is working. The design pass before the hackathon is what makes those three hours productive.
@@ -321,12 +324,12 @@ Coordination contract: the JSON schema is locked at H1. Schema changes after H4 
 
 The demo needs to land two stories: Nemotron's autonomous reasoning (Nemotron track) and NemoClaw's policy enforcement (NemoClaw track). Both must be visible.
 
-1. **Problem framing (20s).** Polypharmacy patient, 6 meds, 15 pairs, 5 seconds of physician attention. Set up the stakes.
-2. **Input + fan-out (40s).** Enter regimen, hit submit, agent graph lights up. "Three sources, three epistemic types, queried in parallel. Each call goes through NemoClaw's policy layer." Briefly show one log line of an allowed call. (Serves NemoClaw.)
+1. **Problem framing (20s).** Patient goes home with 6 medications. 15 pairs to check. No way to know what's risky. Set up the stakes from the patient's perspective.
+2. **Input + fan-out (40s).** Enter the medication list as a patient would (brand names, generics mixed). Hit submit, agent graph lights up. "Three sources, three types of evidence, queried in parallel. Each call goes through NemoClaw's policy layer." Briefly show one log line of an allowed call. (Serves NemoClaw.)
 3. **Synthesis moment (50s).** The intellectual peak. Show Nemotron reasoning visibly. Highlight a real source disagreement. Show the reasoning trace, not just the answer. "Source A says X, source B says Y, here's the reconciliation." (Serves Nemotron.)
-4. **Report (20s).** Severity-ranked pairs, evidence, citations. Toggle to patient view.
-5. **NemoClaw enforcement moment (20s).** Trigger a deliberately crafted input attempting an off-whitelist call. OpenShell blocks it. Log shows the block. "Without NemoClaw, this is exfiltration. With NemoClaw, it's a logged denial." (Serves NemoClaw.)
-6. **Memory close (30s).** Add ibuprofen. Only the new pairs query. Updated report in seconds. (Serves Nemotron via multi-step workflow with state.)
+4. **Report (20s).** Plain-language patient view by default — what's risky, how serious, what to ask your doctor. Toggle to detailed view showing citations and severity scores.
+5. **NemoClaw enforcement moment (20s).** Trigger a deliberately crafted input attempting an off-whitelist call. OpenShell blocks it. Log shows the block. "This is patient health data. Without NemoClaw, a prompt injection could exfiltrate it. With NemoClaw, it's a logged denial." (Serves NemoClaw.)
+6. **Memory close (30s).** Add a new prescription. Only the new pairs re-query. Updated plain-language report in seconds. (Serves Nemotron via multi-step workflow with state.)
 
 Pre-cache results for the demo cases in case of API latency. The cache is honest (real results from real queries) just retrieved locally for demo speed.
 
@@ -342,8 +345,9 @@ Two audiences. Have crisp answers for each track's likely questions.
 ### Nemotron track questions
 - **Why multi-agent instead of one big prompt?** Specialization, parallelism. Each source has different format / coverage / update cycles. The synthesis agent's job is reasoning, not retrieval.
 - **Why Nemotron specifically?** Designed for agentic workflows including function calling, multi-step reasoning, and multi-agent orchestration. We use `nemotron-3-super-120b-a12b` for synthesis because the reasoning trace quality on structured medical text is what carries the cross-source reconciliation. Source agents can use the smaller `nemotron-3-nano-30b-a3b` if latency matters.
-- **Where's the autonomous decision-making?** The synthesis agent decides which source to weight when sources disagree, decides when to flag a "predicted but unverified" risk, and decides what to surface to the clinician versus omit as noise.
-- **Show me the agent thinking.** The synthesis reasoning trace is exposed in the report panel. Judges can see the chain of thought, not just the conclusion.
+- **Where's the autonomous decision-making?** The synthesis agent decides which source to weight when sources disagree, decides when to flag a "predicted but unverified" risk, and decides how to translate clinical findings into plain language a patient can act on.
+- **Show me the agent thinking.** The synthesis reasoning trace is exposed in the detailed view. Judges can see the chain of thought, not just the conclusion.
+- **Why patient-facing and not just for clinicians?** Patients are the ones who go home with the regimen. Clinicians have DrugBank and Micromedex. Patients have Google. This closes that gap.
 
 ### NemoClaw track questions
 - **Why NemoClaw and not just OpenClaw?** Patient medication data is sensitive. NemoClaw enforces an API whitelist (no exfiltration), filesystem containment (no host access), no shell execution (prompt injection containment), and audit logging. Without these, a malicious prompt injection in a FAERS event description could exfiltrate patient data. With NemoClaw, that attack surface is closed at the runtime level.
