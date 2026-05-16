@@ -11,11 +11,13 @@ export default function App() {
   return (
     <Routes>
       <Route path="/auth" element={<AuthPage />} />
-      <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
-      <Route path="/session/:id" element={<ProtectedRoute><SessionPage /></ProtectedRoute>} />
-      <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/session/:id" element={<SessionPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+      </Route>
     </Routes>
   );
 }

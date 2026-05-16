@@ -77,7 +77,7 @@ Each finding has:
 {
   "severity": "contraindicated|major|moderate|minor|no_concern",
   "headline": "<single sentence summarizing the pair-level verdict>",
-  "reasoning": "<chain of thought addressing source agreement/disagreement, severity choice, predicted vs verified>",
+  "reasoning": "<plain English explanation a patient can understand — address source agreement/disagreement, severity choice, and whether this is predicted vs verified. Never output field names, source metadata lists, or key-value pairs. No 'Sources contributing findings:' style prefixes.>",
   "citations": [
     {"source": "openfda_label|openfda_faers|twosides",
      "finding_index": <int>,

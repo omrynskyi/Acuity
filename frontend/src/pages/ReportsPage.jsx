@@ -12,8 +12,9 @@ import {
   deleteSessions,
   unarchiveSessions,
 } from '../lib/db.js';
-import heroImg from '../../hero.jpg';
 import styles from './ReportsPage.module.css';
+
+const heroImg = '/hero.jpg';
 
 const SEVERITY_OPTIONS = [
   { value: 'all', label: 'All Severities' },
@@ -151,8 +152,6 @@ export default function ReportsPage() {
   const allSelected = filteredReports.length > 0 && selected.size === filteredReports.length;
   const someSelected = selected.size > 0;
 
-  if (loading) return <div className={styles.loading}>Loading reports...</div>;
-
   return (
     <div className={styles.page} style={{ backgroundImage: `url(${heroImg})` }}>
       <div className={styles.container}>
@@ -241,74 +240,80 @@ export default function ReportsPage() {
         )}
 
         <div className={styles.grid}>
-          {filteredReports.map(session => {
-            const isMajor = session.overall_severity === 'major' || session.overall_severity === 'contraindicated';
-            const isSelected = selected.has(session.id);
-            return (
-              <div
-                key={session.id}
-                className={`${styles.reportCard} ${isSelected ? styles.reportCardSelected : ''}`}
-                onClick={() => tab === 'active' ? navigate(`/session/${session.id}`) : null}
-              >
-                <div className={styles.cardTop}>
-                  <div className={styles.cardTopLeft}>
-                    {tab === 'archived' && (
-                      <span
-                        className={`${styles.checkbox} ${isSelected ? styles.checkboxChecked : ''}`}
-                        onClick={e => toggleSelect(e, session.id)}
-                      />
-                    )}
-                    <span
-                      className={styles.drugName}
-                      onClick={() => navigate(`/session/${session.id}`)}
-                      style={tab === 'archived' ? { cursor: 'pointer' } : {}}
-                    >
-                      {capitalize(session.new_drug)}
-                    </span>
-                  </div>
-                  <div className={styles.cardTopRight}>
-                    <span className={styles.date}>{formatDate(session.generated_at)}</span>
-                    {tab === 'active' ? (
-                      <button
-                        className={styles.archiveBtn}
-                        onClick={e => handleArchive(e, session.id)}
-                        title="Archive"
-                      >
-                        <Archive size={14} />
-                      </button>
-                    ) : (
-                      <div className={styles.archivedCardActions}>
-                        <button
-                          className={styles.archiveBtn}
-                          onClick={e => handleUnarchive(e, session.id)}
-                          title="Restore"
+          {loading ? (
+            <div className={styles.loadingGrid}>Loading reports...</div>
+          ) : (
+            <>
+              {filteredReports.map(session => {
+                const isMajor = session.overall_severity === 'major' || session.overall_severity === 'contraindicated';
+                const isSelected = selected.has(session.id);
+                return (
+                  <div
+                    key={session.id}
+                    className={`${styles.reportCard} ${isSelected ? styles.reportCardSelected : ''}`}
+                    onClick={() => tab === 'active' ? navigate(`/session/${session.id}`) : null}
+                  >
+                    <div className={styles.cardTop}>
+                      <div className={styles.cardTopLeft}>
+                        {tab === 'archived' && (
+                          <span
+                            className={`${styles.checkbox} ${isSelected ? styles.checkboxChecked : ''}`}
+                            onClick={e => toggleSelect(e, session.id)}
+                          />
+                        )}
+                        <span
+                          className={styles.drugName}
+                          onClick={() => navigate(`/session/${session.id}`)}
+                          style={tab === 'archived' ? { cursor: 'pointer' } : {}}
                         >
-                          <ArchiveRestore size={14} />
-                        </button>
-                        <button
-                          className={`${styles.archiveBtn} ${styles.deleteBtn}`}
-                          onClick={e => handleDelete(e, session.id)}
-                          title="Delete permanently"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                          {capitalize(session.new_drug)}
+                        </span>
                       </div>
-                    )}
+                      <div className={styles.cardTopRight}>
+                        <span className={styles.date}>{formatDate(session.generated_at)}</span>
+                        {tab === 'active' ? (
+                          <button
+                            className={styles.archiveBtn}
+                            onClick={e => handleArchive(e, session.id)}
+                            title="Archive"
+                          >
+                            <Archive size={14} />
+                          </button>
+                        ) : (
+                          <div className={styles.archivedCardActions}>
+                            <button
+                              className={styles.archiveBtn}
+                              onClick={e => handleUnarchive(e, session.id)}
+                              title="Restore"
+                            >
+                              <ArchiveRestore size={14} />
+                            </button>
+                            <button
+                              className={`${styles.archiveBtn} ${styles.deleteBtn}`}
+                              onClick={e => handleDelete(e, session.id)}
+                              title="Delete permanently"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.status}>
+                      <span className={`${styles.dot} ${isMajor ? styles.dotDanger : styles.dotSafe}`} />
+                      <span className={`${styles.statusLabel} ${isMajor ? styles.statusDanger : styles.statusSafe}`}>
+                        {isMajor ? 'Dangerous Combination' : 'Good match'}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className={styles.status}>
-                  <span className={`${styles.dot} ${isMajor ? styles.dotDanger : styles.dotSafe}`} />
-                  <span className={`${styles.statusLabel} ${isMajor ? styles.statusDanger : styles.statusSafe}`}>
-                    {isMajor ? 'Dangerous Combination' : 'Good match'}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-          {filteredReports.length === 0 && (
-            <p className={styles.empty}>
-              {tab === 'archived' ? 'No archived reports.' : 'No reports found matching your criteria.'}
-            </p>
+                );
+              })}
+              {filteredReports.length === 0 && (
+                <p className={styles.empty}>
+                  {tab === 'archived' ? 'No archived reports.' : 'No reports found matching your criteria.'}
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>

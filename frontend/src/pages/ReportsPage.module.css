@@ -38,6 +38,15 @@
   color: var(--color-text-muted);
 }
 
+.loadingGrid {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 100px 0;
+  color: var(--color-text-muted);
+  font-style: italic;
+  font-size: 14px;
+}
+
 .header {
   margin-bottom: 32px;
 }

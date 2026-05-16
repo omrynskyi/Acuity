@@ -153,6 +153,7 @@ class Citation(BaseModel):
     source: SourceName
     finding_index: int = Field(..., ge=0, description="Index into SourceFindings.findings[].")
     quote: str = Field(..., description="Short verbatim excerpt the model relied on.")
+    source_url: Optional[str] = Field(None, description="Direct link to the underlying record.")
 
 
 class SynthesizedInteraction(BaseModel):

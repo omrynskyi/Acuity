@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '../lib/supabase.js';
 
 export default function ProtectedRoute({ children }) {
@@ -13,5 +13,5 @@ export default function ProtectedRoute({ children }) {
 
   if (session === undefined) return null;
   if (!session) return <Navigate to="/auth" replace />;
-  return children;
+  return children ? children : <Outlet />;
 }

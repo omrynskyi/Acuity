@@ -41,7 +41,7 @@
 
 .text-caption {
   font-size: 11px;
-  text-transform: uppercase;
+
   letter-spacing: 0.09em;
   color: var(--color-text-light);
 }

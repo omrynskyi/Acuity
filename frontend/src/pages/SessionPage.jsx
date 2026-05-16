@@ -1,17 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Mail, PlusCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Mail, PlusCircle, CheckCircle, ExternalLink, ChevronDown } from 'lucide-react';
+import { motion } from 'framer-motion';
 import DrugStatusCard from '../components/DrugStatusCard.jsx';
 import InteractionCard from '../components/InteractionCard.jsx';
 import { streamAnalyzeRegimen } from '../api/index.js';
 import { fetchSession, fetchProfile, fetchRegimen, addDrugToRegimen } from '../lib/db.js';
+import { SOURCE_META } from '../lib/constants.js';
 import styles from './SessionPage.module.css';
-
-const SOURCE_META = {
-  openfda_label:  { label: 'FDA Drug Labels',         url: 'https://open.fda.gov/apis/drug/label/' },
-  openfda_faers:  { label: 'FDA Adverse Events (FAERS)', url: 'https://open.fda.gov/apis/drug/event/' },
-  twosides:       { label: 'TWOSIDES Database',        url: 'https://tatonettilab.org/resources/nsides/' },
-};
 
 const STAGGER_MS = 700;
 
@@ -185,47 +181,37 @@ export default function SessionPage() {
   if (phase === 'loading') {
     return (
       <div className={styles.page}>
-        <div className="container">
+        <div className={styles.centerPanel}>
           <button className="btn-ghost mb-24" onClick={() => navigate('/')}>
             <ArrowLeft size={16} /> Home
           </button>
           <p className="text-section-label">We are researching the possible drug interactions for:</p>
           <h1 className="text-title mt-4">{capitalize(activeNewDrug)}</h1>
           <p className={`${styles.loadingNote} mt-8`}>{PHASE_LABELS[streamPhase]}</p>
-        </div>
 
-        {sourceUpdates.length > 0 && (
-          <ul className={styles.sourceLog}>
-            {sourceUpdates.slice(-6).map((u, i) => {
-              const meta = SOURCE_META[u.source] || { label: u.source, url: '#' };
+          <div className={styles.cardsRow}>
+            {activeRegimen.map((drug, i) => {
+              const isDone = isDrugDone(drug);
+              const span = bentoSpan(i, activeRegimen.length);
+              const baseDrug = drug.toLowerCase().split('(')[0].trim();
+              const drugSources = sourceUpdates.filter(u =>
+                u.pair.some(p => {
+                  const pl = p.toLowerCase();
+                  return pl === baseDrug || pl.includes(baseDrug) || baseDrug.includes(pl);
+                })
+              );
               return (
-                <li key={i} className={styles.sourceLogItem}>
-                  <span className={styles.sourceLogDot} />
-                  <a href={meta.url} target="_blank" rel="noreferrer" className={styles.sourceLogLink}>
-                    {meta.label}
-                  </a>
-                  <span className={styles.sourceLogPair}>{u.pair.join(' + ')}</span>
-                  <span className={styles.sourceLogCount}>{u.n_findings} finding{u.n_findings !== 1 ? 's' : ''}</span>
-                </li>
+                <div key={drug} style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
+                  <DrugStatusCard
+                    drugName={drug}
+                    status={isDone ? 'done' : 'progress'}
+                    sources={drugSources}
+                    snippet={isDone ? 'Analysis complete' : undefined}
+                  />
+                </div>
               );
             })}
-          </ul>
-        )}
-
-        <div className={styles.cardsRow}>
-          {activeRegimen.map((drug, i) => {
-            const isDone = isDrugDone(drug);
-            const span = bentoSpan(i, activeRegimen.length);
-            return (
-              <div key={drug} style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
-                <DrugStatusCard
-                  drugName={drug}
-                  status={isDone ? 'done' : 'progress'}
-                  snippet={isDone ? 'No interactions found with your current medications' : undefined}
-                />
-              </div>
-            );
-          })}
+          </div>
         </div>
       </div>
     );
@@ -239,7 +225,7 @@ export default function SessionPage() {
 
   return (
     <div className={styles.page}>
-      <div className="container">
+      <div className={styles.centerPanel}>
         <button className="btn-ghost mb-24" onClick={() => navigate('/')}>
           <ArrowLeft size={16} /> Home
         </button>
@@ -281,7 +267,7 @@ export default function SessionPage() {
 
         <div className="card mb-32" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className={styles.doctorLeft}>
-            <div className={styles.gmailIcon}>M</div>
+            <img src="/gmail.png" alt="Gmail" className={styles.gmailIcon} />
             <div>
               <p className="text-body" style={{ fontWeight: 600 }}>{activeDoctor}</p>
               <p className="text-secondary">{activeDoctorEmail}</p>
@@ -307,27 +293,41 @@ export default function SessionPage() {
         )}
 
         <p className={styles.sectionHeading}>All interactions checked:</p>
-        <div className={styles.interactionList}>
-          {report.interactions.map((ix) => (
-            <InteractionCard key={ix.drug_pair.join('-')} interaction={ix} />
-          ))}
-        </div>
+        <InteractionGroups
+          interactions={report.interactions}
+          newDrug={activeNewDrug.toLowerCase()}
+        />
 
         {report.sources_consulted?.length > 0 && (
           <div className={styles.sourcesSection}>
             <p className={styles.sectionHeading}>Sources consulted:</p>
-            <ul className={styles.sourcesList}>
-              {report.sources_consulted.map((s) => {
-                const meta = SOURCE_META[s] || { label: s, url: '#' };
+            <div className={styles.sourcesGrid}>
+              {report.sources_consulted.map((s, i) => {
+                const meta = SOURCE_META[s] || { label: s, url: '#', domain: null };
                 return (
-                  <li key={s} className={styles.sourcesItem}>
-                    <a href={meta.url} target="_blank" rel="noreferrer" className={styles.sourcesLink}>
-                      {meta.label}
-                    </a>
-                  </li>
+                  <motion.a
+                    key={s}
+                    href={meta.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.sourceCard}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.32, ease: 'easeOut', delay: i * 0.08 }}
+                  >
+                    {meta.domain && (
+                      <img
+                        src={`https://www.google.com/s2/favicons?domain=${meta.domain}&sz=16`}
+                        width={14} height={14} alt=""
+                        className={styles.sourceCardFavicon}
+                      />
+                    )}
+                    <span className={styles.sourceCardLabel}>{meta.label}</span>
+                    <ExternalLink size={11} className={styles.sourceCardIcon} />
+                  </motion.a>
                 );
               })}
-            </ul>
+            </div>
           </div>
         )}
 
@@ -388,6 +388,69 @@ export default function SessionPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function InteractionGroups({ interactions, newDrug }) {
+  const [noConcernOpen, setNoConcernOpen] = useState(false);
+
+  const BUCKETS = [
+    { key: 'danger',     label: 'Major',      severities: ['contraindicated', 'major'] },
+    { key: 'moderate',   label: 'Moderate',   severities: ['moderate'] },
+    { key: 'minor',      label: 'Minor',      severities: ['minor'] },
+    { key: 'no_concern', label: 'No concern', severities: ['no_concern'] },
+  ];
+
+  const grouped = BUCKETS.map(b => ({
+    ...b,
+    items: interactions.filter(ix => b.severities.includes(ix.severity)),
+  })).filter(b => b.items.length > 0);
+
+  return (
+    <div className={styles.interactionGroups}>
+      {grouped.map((bucket) => {
+        const isNoConcern = bucket.key === 'no_concern';
+        const count = bucket.items.length;
+        const DividerTag = isNoConcern ? 'button' : 'div';
+
+        return (
+          <div key={bucket.key} className={styles.groupSection}>
+            <DividerTag
+              className={`${styles.groupDivider} ${styles[`divider_${bucket.key}`]}`}
+              {...(isNoConcern ? { onClick: () => setNoConcernOpen(o => !o) } : {})}
+            >
+              <span className={styles.groupDot} />
+              <span className={styles.groupTitle}>{bucket.label}</span>
+              <span className={styles.groupCount}>
+                {count} interaction{count !== 1 ? 's' : ''}
+              </span>
+              <span className={styles.groupLine} />
+              {isNoConcern && (
+                <ChevronDown
+                  size={13}
+                  className={`${styles.groupChevron} ${noConcernOpen ? styles.groupChevronOpen : ''}`}
+                />
+              )}
+            </DividerTag>
+
+            {(!isNoConcern || noConcernOpen) && (
+              <div className={styles.groupRows}>
+                {bucket.items.map((ix, i) => (
+                  <motion.div
+                    key={ix.drug_pair.join('-')}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.28, ease: 'easeOut', delay: i * 0.04 }}
+                  >
+                    <InteractionCard interaction={ix} newDrug={newDrug} />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

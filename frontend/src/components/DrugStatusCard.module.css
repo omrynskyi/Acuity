@@ -5,7 +5,7 @@
   box-shadow: var(--shadow-card);
   border: 1px solid var(--color-border);
   transition: border-color 0.3s;
-  height: 100%; /* fill the grid cell so rows stay uniform */
+  height: 100%;
 }
 
 .done {
@@ -55,38 +55,92 @@
   margin-bottom: 12px;
 }
 
+/* ── Animated source entries ── */
+
 .sources {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.searchingLabel {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin-bottom: 2px;
-}
-
-.sourceChip {
+.sourceEntry {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--color-bg);
-  border-radius: var(--radius-xs);
+  background: #f8f8f6;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
   padding: 8px 12px;
-  min-width: 0; /* allow shrinking so truncation works */
-}
-
-.sourceIcon {
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.sourceUrl {
   font-size: 12px;
-  color: var(--color-text-muted);
+  overflow: hidden;
+}
+
+.favicon {
+  border-radius: 2px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.sourceLabel {
+  font-weight: 500;
+  color: var(--color-text);
+  flex-shrink: 0;
   white-space: nowrap;
+}
+
+.sourcePair {
+  color: var(--color-text-muted);
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
+  white-space: nowrap;
+}
+
+.sourceFindings {
+  color: var(--color-amber);
+  font-weight: 500;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.sourceViewBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 11px;
+  font-family: var(--font-body);
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.sourceViewBtn:hover {
+  color: var(--color-text);
+  border-color: #aaa;
+}
+
+.showMoreBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-family: var(--font-body);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.showMoreBtn:hover {
+  color: var(--color-text);
 }

@@ -134,7 +134,9 @@ def _parse_llm_output(
             continue
         if not isinstance(idx, int) or idx < 0 or idx >= len(by_source[src].findings):
             continue
-        cites.append(Citation(source=src, finding_index=idx, quote=str(quote)[:400]))
+        finding = by_source[src].findings[idx]
+        url = (finding.evidence.source_url if finding.evidence else None) or None
+        cites.append(Citation(source=src, finding_index=idx, quote=str(quote)[:400], source_url=url))
 
     return SynthesizedInteraction(
         drug_pair=pair,
@@ -218,6 +220,7 @@ def _fallback_synthesize(
                 source=s.source,
                 finding_index=best_idx,
                 quote=(f.evidence.raw_excerpt or f.description)[:300],
+                source_url=(f.evidence.source_url if f.evidence else None) or None,
             )
         )
 
@@ -235,15 +238,21 @@ def _fallback_synthesize(
     }
     headline = headline_map.get(severity, f"Limited signal for {pair[0]} + {pair[1]}.")
 
+    source_names = ", ".join(
+        s.replace("openfda_", "FDA ").replace("_", " ").title()
+        for s in sorted(contributing_sources)
+    )
     reasoning_lines = [
-        f"Sources contributing findings: {', '.join(sorted(contributing_sources))}.",
-        f"Strongest single-source severity hint: {SeverityHint(_RANK_TO_SEV[top_rank].value).value if top_rank else 'none'}.",
-        f"Cross-source agreement: {agreement}.",
+        f"Based on data from {source_names}, this combination shows a {severity.value}-level interaction signal.",
     ]
+    if agreement == "disagree":
+        reasoning_lines.append(
+            "Sources don't fully agree on severity; the most serious finding is used as a precaution."
+        )
     if silent_with_coverage and len(contributing_sources) < len(sources):
         reasoning_lines.append(
-            "At least one source covered the pair with no signal; "
-            "marking as predicted_but_unverified."
+            "At least one source reviewed this pair and found no signal, "
+            "so this risk is flagged as predicted but not confirmed across all databases."
         )
 
     return SynthesizedInteraction(
