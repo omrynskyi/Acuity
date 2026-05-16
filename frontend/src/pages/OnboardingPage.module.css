@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 40px 24px;
+  padding: max(40px, env(safe-area-inset-top)) 24px max(40px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -3,8 +3,9 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, Mail, PlusCircle, CheckCircle, ExternalLink, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import DrugStatusCard from '../components/DrugStatusCard.jsx';
+import { capitalize } from '../lib/utils.js';
 import InteractionCard from '../components/InteractionCard.jsx';
-import { streamAnalyzeRegimen } from '../api/index.js';
+import { streamAnalyzeDrug } from '../api/index.js';
 import { fetchSession, fetchProfile, fetchRegimen, addDrugToRegimen } from '../lib/db.js';
 import { SOURCE_META } from '../lib/constants.js';
 import styles from './SessionPage.module.css';
@@ -75,9 +76,9 @@ export default function SessionPage() {
     }
 
     // Fresh-analysis mode: stream from backend.
-    const allDrugs = [...regimen, newDrug.toLowerCase()];
-
-    streamAnalyzeRegimen(allDrugs, id !== 'pending' ? id : undefined, {
+    // Use the drug-specific endpoint so only pairs involving the new drug are checked,
+    // not every existing-regimen pair.
+    streamAnalyzeDrug(newDrug.toLowerCase(), id !== 'pending' ? id : undefined, {
       onEvent({ type, data }) {
         if (type === 'intake_done') {
           setStreamPhase('intake');
@@ -190,9 +191,8 @@ export default function SessionPage() {
           <p className={`${styles.loadingNote} mt-8`}>{PHASE_LABELS[streamPhase]}</p>
 
           <div className={styles.cardsRow}>
-            {activeRegimen.map((drug, i) => {
+            {activeRegimen.map((drug) => {
               const isDone = isDrugDone(drug);
-              const span = bentoSpan(i, activeRegimen.length);
               const baseDrug = drug.toLowerCase().split('(')[0].trim();
               const drugSources = sourceUpdates.filter(u =>
                 u.pair.some(p => {
@@ -201,14 +201,13 @@ export default function SessionPage() {
                 })
               );
               return (
-                <div key={drug} style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
-                  <DrugStatusCard
-                    drugName={drug}
-                    status={isDone ? 'done' : 'progress'}
-                    sources={drugSources}
-                    snippet={isDone ? 'Analysis complete' : undefined}
-                  />
-                </div>
+                <DrugStatusCard
+                  key={drug}
+                  drugName={drug}
+                  status={isDone ? 'done' : 'progress'}
+                  sources={drugSources}
+                  snippet={isDone ? 'Analysis complete' : undefined}
+                />
               );
             })}
           </div>
@@ -285,14 +284,16 @@ export default function SessionPage() {
 
             <p className={styles.sectionHeading}>Watch for these symptoms:</p>
             <p className="text-body">
-              If you have already taken both medications, go to an emergency room if you experience
-              severe muscle pain, sudden difficulty breathing, dizziness, or a feeling of extreme
-              cold in your hands and feet.
+              If you have already taken {capitalize(topMajor.drug_pair[0])} and{' '}
+              {capitalize(topMajor.drug_pair[1])} together, watch for any unusual or
+              severe symptoms and seek emergency care immediately if you feel unwell.
             </p>
           </>
         )}
 
-        <p className={styles.sectionHeading}>All interactions checked:</p>
+        <p className={styles.sectionHeading}>
+          Interactions with {capitalize(activeNewDrug)}:
+        </p>
         <InteractionGroups
           interactions={report.interactions}
           newDrug={activeNewDrug.toLowerCase()}
@@ -455,17 +456,4 @@ function InteractionGroups({ interactions, newDrug }) {
   );
 }
 
-function capitalize(s) {
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
 
-function bentoSpan(index, total) {
-  const COLS = 3;
-  const remainder = total % COLS;
-  if (remainder === 0) return 1;
-  const lastRowStart = total - remainder;
-  if (index < lastRowStart) return 1;
-  if (remainder === 1) return 3;
-  return index === lastRowStart ? 1 : 2;
-}

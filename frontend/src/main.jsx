@@ -4,6 +4,12 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import './styles/global.css';
 import './styles/design.css';
+import heroImg from '../hero.jpg';
+
+// Vite gives heroImg a hashed URL (e.g. /assets/hero-HASH.jpg).
+// Set as CSS custom property before React renders so both the html canvas
+// background and #bg-layer pick it up without a flash.
+document.documentElement.style.setProperty('--hero-bg', `url(${heroImg})`);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

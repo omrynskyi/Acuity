@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { capitalize } from '../lib/utils.js';
 import { Edit2, Search, ChevronRight, Trash2, Settings } from 'lucide-react';
 import DrugRow from '../components/DrugRow.jsx';
 import CustomSelect from '../components/CustomSelect.jsx';
@@ -495,11 +496,6 @@ export default function HomePage() {
       )}
     </div>
   );
-}
-
-function capitalize(s) {
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function formatDate(iso) {

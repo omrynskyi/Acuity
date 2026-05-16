@@ -231,28 +231,31 @@ def _fallback_synthesize(
         for s in sources
     )
 
+    drug_a, drug_b = pair
     headline_map = {
-        Severity.MAJOR: f"Major interaction signal between {pair[0]} and {pair[1]}.",
-        Severity.MODERATE: f"Moderate interaction signal between {pair[0]} and {pair[1]}.",
-        Severity.MINOR: f"Mild interaction signal between {pair[0]} and {pair[1]}.",
+        Severity.MAJOR: f"Taking {drug_a} with {drug_b} may cause serious harm — consult your doctor before combining these.",
+        Severity.MODERATE: f"{drug_a.capitalize()} and {drug_b} can interact; monitoring or dose adjustment may be needed.",
+        Severity.MINOR: f"{drug_a.capitalize()} and {drug_b} have a mild interaction with limited clinical impact for most patients.",
     }
-    headline = headline_map.get(severity, f"Limited signal for {pair[0]} + {pair[1]}.")
+    headline = headline_map.get(severity, f"No significant interaction signal found for {drug_a} and {drug_b}.")
 
     source_names = ", ".join(
         s.replace("openfda_", "FDA ").replace("_", " ").title()
         for s in sorted(contributing_sources)
     )
     reasoning_lines = [
-        f"Based on data from {source_names}, this combination shows a {severity.value}-level interaction signal.",
+        f"Taking {drug_a} and {drug_b} together carries a {severity.value}-level interaction risk"
+        f" based on findings from {source_names}.",
     ]
     if agreement == "disagree":
         reasoning_lines.append(
-            "Sources don't fully agree on severity; the most serious finding is used as a precaution."
+            "The databases don't fully agree on how serious this interaction is,"
+            " so the most cautious assessment is used here."
         )
     if silent_with_coverage and len(contributing_sources) < len(sources):
         reasoning_lines.append(
-            "At least one source reviewed this pair and found no signal, "
-            "so this risk is flagged as predicted but not confirmed across all databases."
+            "At least one database that covers this pair did not flag a risk,"
+            " so this interaction is flagged as a predicted concern rather than a confirmed one."
         )
 
     return SynthesizedInteraction(

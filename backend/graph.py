@@ -43,6 +43,7 @@ class AcuityState(TypedDict, total=False):
 
     session_id: str
     raw_regimen: list[str]
+    target_drug: str  # when set, only pairs involving this drug are checked
     regimen: list[NormalizedDrug]
     pairs: list[tuple[str, str]]
     new_pairs: list[tuple[str, str]]
@@ -67,7 +68,15 @@ async def intake_node(state: AcuityState) -> AcuityState:
     # Build pairs over recognised drugs only; unknown ones are surfaced in
     # the regimen list but excluded from interaction checks.
     keys = [d.generic_name or d.input_name.lower() for d in normalized if d.found]
-    pairs = list(combinations(sorted(set(keys)), 2))
+    all_pairs = list(combinations(sorted(set(keys)), 2))
+
+    # If a target_drug is specified (e.g. adding one new drug to a regimen),
+    # only check pairs that involve that drug rather than every C(n,2) pair.
+    target = (state.get("target_drug") or "").strip().lower()
+    if target:
+        pairs = [p for p in all_pairs if target in p]
+    else:
+        pairs = all_pairs
 
     durations = state.get("durations_ms") or {}
     durations["intake_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
@@ -287,19 +296,23 @@ def graph() -> Any:
     return _GRAPH
 
 
-async def run_analysis(session_id: str, drugs: list[str]) -> AcuityState:
+async def run_analysis(session_id: str, drugs: list[str], *, target_drug: str | None = None) -> AcuityState:
     """Convenience runner used by the FastAPI endpoint and tests."""
     init: AcuityState = {
         "session_id": session_id,
         "raw_regimen": drugs,
         "durations_ms": {},
     }
+    if target_drug:
+        init["target_drug"] = target_drug
     return await graph().ainvoke(init)
 
 
 async def run_analysis_streaming(
     session_id: str,
     drugs: list[str],
+    *,
+    target_drug: str | None = None,
 ) -> AsyncGenerator[tuple[str, dict], None]:
     """Async generator that runs the pipeline and yields (event_type, payload) as each stage completes."""
     state: AcuityState = {
@@ -308,6 +321,8 @@ async def run_analysis_streaming(
         "durations_ms": {},
         "started_at": datetime.now(timezone.utc),
     }
+    if target_drug:
+        state["target_drug"] = target_drug
 
     # Stage 1: intake
     try:

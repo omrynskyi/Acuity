@@ -1,4 +1,5 @@
 import styles from './DrugRow.module.css';
+import { capitalize } from '../lib/utils.js';
 
 export default function DrugRow({ drug }) {
   const name = drug.generic_name || drug.input_name;
@@ -14,8 +15,4 @@ export default function DrugRow({ drug }) {
       </div>
     </div>
   );
-}
-
-function capitalize(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }

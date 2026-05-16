@@ -5,7 +5,9 @@
   box-shadow: var(--shadow-card);
   border: 1px solid var(--color-border);
   transition: border-color 0.3s;
-  height: 100%;
+  height: 210px;
+  display: flex;
+  flex-direction: column;
 }
 
 .done {
@@ -50,17 +52,19 @@
 
 .snippet {
   font-size: 13px;
-  color: var(--color-text);
+  color: var(--color-text-muted);
   line-height: 1.5;
-  margin-bottom: 12px;
 }
 
-/* ── Animated source entries ── */
+/* ── Source area — always occupies remaining card space ── */
 
 .sources {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  overflow: hidden;
 }
 
 .sourceEntry {
@@ -126,21 +130,3 @@
   border-color: #aaa;
 }
 
-.showMoreBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  padding: 4px 0;
-  background: none;
-  border: none;
-  font-size: 12px;
-  font-family: var(--font-body);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: color 0.15s;
-}
-
-.showMoreBtn:hover {
-  color: var(--color-text);
-}
