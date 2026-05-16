@@ -77,6 +77,43 @@ network_policies:
     binaries:
       - { path: "/**" }
 
+  # Brave Search — used by the DeepResearch skill only.
+  brave:
+    name: brave
+    endpoints:
+      - host: api.search.brave.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
+  # Telegram Bot API — used by the Reminder skill to send messages.
+  telegram:
+    name: telegram
+    endpoints:
+      - host: api.telegram.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
+  # Acuity API — used by the Analyze skill.
+  # TODO: replace placeholder with production Vercel host from ACUITY_API_BASE_URL.
+  acuity_api:
+    name: acuity_api
+    endpoints:
+      - host: acuity.vercel.app  # TODO fill from ACUITY_API_BASE_URL
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
   # Nemotron inference. Anchor for the entire synthesis pipeline.
   nvidia:
     name: nvidia

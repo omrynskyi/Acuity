@@ -1,5 +1,7 @@
 __pycache__/
 my-video/
+PLAN.md
+TASKS.md
 *.pyc
 *.pyo
 .env

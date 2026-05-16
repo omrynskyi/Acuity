@@ -596,6 +596,68 @@ Run the demo three times. Refine the script.
 
 ---
 
+## Phase 6 · Agent Skills
+
+### [DONE] BE-16 · Schema — DeepResearchReport
+**Owner:** Backend
+**Depends on:** JOINT-01
+**Description:** Append `DeepResearchFinding` and `DeepResearchReport` to `backend/schemas.py` without touching `RegimenReport`.
+**Acceptance:** `from backend.schemas import DeepResearchReport` works; existing `RegimenReport` unchanged.
+
+---
+
+### [DONE] BE-17 · Policy — add brave/telegram/vercel hosts
+**Owner:** Backend
+**Depends on:** BE-15
+**Description:** Add `api.search.brave.com`, `api.telegram.org`, and vercel placeholder to `policies/policy.yaml`.
+**Acceptance:** Policy YAML parses; new host entries present.
+
+---
+
+### [DONE] BE-18 · Skill — Analyze
+**Owner:** Backend
+**Description:** `skills/analyze/SKILL.md` + `scripts/analyze.py`. POSTs to `ACUITY_API_BASE_URL/api/analyze`, prints `RegimenReport` JSON to stdout.
+**Acceptance:** `python skills/analyze/scripts/analyze.py --drugs '["aspirin","warfarin"]'` returns valid JSON with `schema_version: "1.0"`.
+
+---
+
+### [DONE] BE-19 · Skill — MakeReport
+**Owner:** Backend
+**Depends on:** BE-16
+**Description:** `skills/make_report/` with `make_report.py` (entrypoint), `render_regimen.py`, `render_deep_research.py`, `template.py`. Auto-detects schema, generates PDF via ReportLab.
+**Acceptance:** Both `RegimenReport` and `DeepResearchReport` inputs produce readable PDFs.
+
+---
+
+### [DONE] BE-20 · Skill — Reminder
+**Owner:** Backend
+**Description:** `skills/reminder/` with `create.py`, `list.py`, `cancel.py`, `send.py`. NemoClaw-isolated: crontab + `/session/reminders/` + Telegram.
+**Acceptance:** `create.py` writes JSON and crontab line; `send.py` posts to Telegram; `cancel.py` removes both.
+
+---
+
+### [DONE] BE-21 · Skill — DeepResearch
+**Owner:** Backend
+**Depends on:** BE-16, BE-17
+**Description:** `skills/deep_research/` with `deep_research.py`, `brave_search.py`, `synthesize.py`. Fans out 6 Brave queries per drug, synthesizes with Nemotron.
+**Acceptance:** `python skills/deep_research/scripts/deep_research.py --drug "metformin"` returns `DeepResearchReport` with ≥4 findings.
+
+---
+
+### [DONE] BE-22 · Skill — DB stubs
+**Owner:** Backend
+**Description:** `skills/db/` with `db_read.py` and `db_write.py` as TODO stubs. Exit 2 with JSON status message.
+**Acceptance:** Both scripts exit 2 with parseable JSON on stderr.
+
+---
+
+### [DONE] BE-23 · Skills test plan
+**Owner:** Backend
+**Description:** `docs/skills-test-plan.md` with agent prompts, expected behavior, and verification steps for all 5 skills.
+**Acceptance:** Document covers Analyze, MakeReport (both schemas), DeepResearch, Reminder (create/list/cancel), DB stubs, policy gate, and end-to-end pipeline.
+
+---
+
 ## Phase 7: Submit (H23 to H24)
 
 ### JOINT-06 · Final submit

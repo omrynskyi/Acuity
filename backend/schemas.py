@@ -207,16 +207,67 @@ class RegimenReport(BaseModel):
     )
 
 
+# --------------------------------------------------------------------------- #
+# Deep-research schema (added for skills/deep_research)
+# --------------------------------------------------------------------------- #
+
+class ResearchCitation(BaseModel):
+    """A URL-backed citation from a Brave search result."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str
+    url: str
+    quote: Optional[str] = Field(None, description="Relevant excerpt from the page.")
+
+
+class DeepResearchFinding(BaseModel):
+    """One researched aspect of a drug."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    aspect: Literal[
+        "mechanism",
+        "indications",
+        "contraindications",
+        "adverse_events",
+        "interactions",
+        "pharmacokinetics",
+        "other",
+    ]
+    summary: str = Field(..., description="Synthesized summary for this aspect.")
+    citations: list[ResearchCitation] = Field(default_factory=list)
+
+
+class DeepResearchReport(BaseModel):
+    """Output of the DeepResearch skill for a single drug."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    report_type: Literal["deep_research"] = "deep_research"
+    schema_version: Literal["1.0"] = "1.0"
+    drug: str = Field(..., description="Drug name as provided by the user.")
+    generated_at: datetime
+    executive_summary: str = Field(..., description="Two-to-four sentence overview.")
+    findings: list[DeepResearchFinding] = Field(
+        default_factory=list,
+        description="One entry per researched aspect.",
+    )
+
+
 __all__ = [
     "Citation",
     "Confidence",
     "Coverage",
+    "DeepResearchFinding",
+    "DeepResearchReport",
     "DrugPair",
     "Evidence",
     "Finding",
     "FindingType",
     "NormalizedDrug",
     "RegimenReport",
+    "ResearchCitation",
     "Severity",
     "SeverityHint",
     "SourceFindings",
