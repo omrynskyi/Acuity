@@ -6,8 +6,6 @@ You are **Person A**, the backend/agents lead on Acuity. You are running on a Br
 ## Project Summary
 Acuity is an autonomous multi-agent drug interaction checker for polypharmacy patients. It fans out across three data sources (OpenFDA Label, OpenFDA FAERS, TWOSIDES) in parallel, synthesizes conflicting findings using Nemotron (`nemotron-3-super-120b-a12b`), and returns a severity-ranked report with citations. The same system is wrapped in NemoClaw for the bonus track, demonstrating PHI containment and API whitelist enforcement.
 
-## Your Mission
-Work through **every task in `TASKS.md` assigned to Person A** (owner: `BE-*` and any `JOINT-*` tasks). Complete them in dependency order. Do not skip tasks. Do not leave a task half-finished before moving to the next.
 
 ## Progress Tracking
 Use `TASKS.md` as your live progress tracker. When you begin a task, mark it `[IN PROGRESS]`. When it is done and acceptance criteria are met, mark it `[DONE]`. Do not use any Kanban system or localhost API.

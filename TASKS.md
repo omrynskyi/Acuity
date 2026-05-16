@@ -140,18 +140,16 @@ Define the contract between source agents and synthesis, and between backend and
 **Time:** 30 min joint, then Person B continues design work in parallel
 
 **Steps (joint, 15 min):**
-1. Pick primary regimen: 6 drugs including at least one pair with cross-source disagreement potential. Warfarin + Aspirin should be in there as the known-major anchor case.
-2. Pick follow-up case: primary + ibuprofen for memory demo
+1. Pick primary regimen: 6 drugs a real patient might take, including at least one pair with cross-source disagreement potential. Warfarin + Aspirin should be in there as the known-major anchor case. Frame it as a patient's actual med list, not a clinical test case.
+2. Pick follow-up case: primary + ibuprofen (something a patient might add OTC) for memory demo
 3. Design attack case: input with embedded prompt injection or off-whitelist URL for NemoClaw block demo
 4. Document in `docs/demo-cases.md`
 
 **Steps (Person B continues alone, 1-2h):**
-5. Sketch frontend layout direction
-6. Pick visual identity (typography, color, motion vocabulary, layout)
-7. Mock up the key states: input, fan-out, synthesis moment, report, NemoClaw block
+5. Sketch frontend layout direction — patient-first: warm, approachable, not clinical
+6. Pick visual identity (typography, color, motion vocabulary, layout — avoid sterile hospital aesthetic)
+7. Mock up the key states: input, fan-out, synthesis moment, plain-language patient report, NemoClaw block
 
-**Acceptance (joint):** Three demo cases documented. → met by Person A in `docs/demo-cases.md`.
-**Acceptance (design):** Person B has enough direction to start building. Will iterate during build. → pending Person B.
 
 ---
 
@@ -320,15 +318,16 @@ The most important block of time in the whole build. Iterate the prompt against 
 **Depends on:** BE-09
 **Time:** 45 min
 
-Aggregate per-pair syntheses into a full regimen report.
+Aggregate per-pair syntheses into a full regimen report. Patient plain-language output is the primary view.
 
 **Steps:**
 1. Take list of SynthesizedInteraction
 2. Sort by severity
 3. Produce `RegimenReport` with overall summary, ranked pairs, source attribution
-4. Generate patient-friendly version using nano-30b (translates clinician language)
+4. Generate plain-language patient version using nano-30b: what this means for you, what symptoms to watch for, what to ask your doctor
+5. Detailed view (severity scores, citations) is secondary — same data, different rendering
 
-**Acceptance:** Given syntheses for all 15 pairs of 6-drug regimen, returns RegimenReport sorted by severity with both views.
+**Acceptance:** Given syntheses for all 15 pairs of 6-drug regimen, returns RegimenReport sorted by severity. Patient view is plain English with "what to ask your doctor" prompts. Detailed view has citations and severity labels.
 
 ---
 
@@ -342,11 +341,13 @@ Iterate on the report panel with richer fixture data. Design and build the synth
 **Steps (open-ended on visual treatment):**
 1. Design and build the moment Nemotron is "thinking" - this is the demo peak
 2. Make the cross-source reasoning visible (not just final answer)
-3. Iterate on report panel: severity, evidence depth, citations, patient view
-4. Add memory state indicator placeholder (lights up on follow-up)
-5. Add empty/error states
+3. Iterate on report panel: plain-language patient view is the default — severity expressed in human terms ("serious risk", "watch out for"), expandable for evidence and citations
+4. Toggle to detailed view showing technical severity labels and source citations
+5. "What to ask your doctor" prompts rendered per flagged pair
+6. Add memory state indicator placeholder (lights up on follow-up)
+7. Add empty/error states
 
-**Acceptance:** Synthesis moment is theatrical and demoable. Report panel feels finished against fixtures. Both views (clinician, patient) render meaningfully.
+**Acceptance:** Synthesis moment is theatrical and demoable. Report panel defaults to plain-language patient view and feels finished against fixtures. Detailed view toggle works.
 
 ---
 
@@ -355,16 +356,16 @@ Iterate on the report panel with richer fixture data. Design and build the synth
 **Depends on:** FE-03, JOINT-02
 **Time:** 30 min
 
-Write the demo script as words on a page.
+Write the demo script as words on a page. Narrate from the patient's perspective, not a clinician's.
 
 **Steps:**
-1. Write 3-minute demo flow per PRD section 15
+1. Write 3-minute demo flow per PRD section 15 — open with the patient story, not the technical architecture
 2. Time it (read aloud)
 3. Identify dead-air moments, plan what to say
 4. Mark visual peaks
 5. Confirm both teammates know their lines
 
-**Acceptance:** Written script. Runs 2:45-3:15 read aloud at normal pace.
+**Acceptance:** Written script. Runs 2:45-3:15 read aloud at normal pace. Patient framing holds throughout.
 
 ---
 
@@ -642,7 +643,7 @@ JOINT-00 → BE-01 → BE-02 → BE-03 → JOINT-01 → BE-04 → BE-05, BE-06, 
 
 In this order:
 
-1. **Patient view of report** (nice but not required for demo)
+1. **Detailed/technical view of report** (nice but not required for demo — patient view ships first)
 2. **TWOSIDES integration** (fall back to hardcoded lookup for demo cases)
 3. **Memory layer polish** (basic cache is fine, don't use OpenClaw memory if it's flaky)
 4. **NemoClaw integration** (Cloud track still ships, lose bonus track only)
