@@ -85,19 +85,6 @@ def _do_store(session_id: str, new_drug: str, drugs_checked: list[str], report_d
         sb.table("interactions").insert(rows).execute()
 
 
-def get_regimen_for_profile(profile_id: str) -> list[dict]:
-    """Return active (not removed) regimen rows for a profile, ordered by sort_order."""
-    res = (
-        _client()
-        .table("regimen")
-        .select("*")
-        .eq("profile_id", profile_id)
-        .is_("removed_at", "null")
-        .order("sort_order")
-        .execute()
-    )
-    return res.data or []
-
 
 def get_profile_by_user_id(user_id: str) -> dict | None:
     res = _client().table("profiles").select("*").eq("user_id", user_id).maybe_single().execute()

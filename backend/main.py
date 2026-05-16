@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 load_dotenv()
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 
-from backend.db import create_profile, generate_pat_for_user, get_profile_by_pat, get_profile_by_user_id, get_regimen_for_profile, store_session  # noqa: E402
+from backend.db import create_profile, generate_pat_for_user, get_profile_by_pat, get_profile_by_user_id, get_regimen, store_session  # noqa: E402
 from backend.graph import run_analysis, run_analysis_streaming  # noqa: E402
 from backend.memory import reset as reset_memory  # noqa: E402
 from backend.routers.user import router as user_router  # noqa: E402
@@ -214,7 +214,7 @@ async def _get_profile_regimen(user: dict) -> tuple[str, list[str]]:
     profile_id = user.get("profile_id") or _resolve_profile_id(user)
     if not profile_id:
         raise HTTPException(status_code=404, detail="No profile found for this user")
-    rows = await asyncio.to_thread(get_regimen_for_profile, profile_id)
+    rows = await asyncio.to_thread(get_regimen, profile_id)
     drug_names = [r["generic_name"] or r["input_name"] for r in rows]
     return profile_id, drug_names
 
