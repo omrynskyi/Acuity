@@ -5,8 +5,9 @@ import DrugRow from '../components/DrugRow.jsx';
 import CustomSelect from '../components/CustomSelect.jsx';
 import { fetchProfile, fetchRegimen, fetchRecentSessions, updateProfile, updateRegimenDrug, addDrugToRegimen, removeDrugFromRegimen } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
-import heroImg from '../../hero.jpg';
 import styles from './HomePage.module.css';
+
+const heroImg = '/hero.jpg';
 
 const FREQ_OPTIONS = ['daily', 'twice daily', 'weekly', 'custom'];
 

@@ -1,26 +1,28 @@
 .page {
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
   position: relative;
   background-size: cover;
-  background-position: center 60%;
+  background-position: center 20%;
+  background-attachment: fixed;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  padding-top: 64px;
+  padding-bottom: 48px;
 }
 
-/* full-page gradient overlay */
+/* full-page gradient overlay — vh units so the fade always spans one viewport */
 .page::before {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(244, 244, 241, 0.08) 0%,
-    rgba(244, 244, 241, 0.55) 40%,
-    rgba(244, 244, 241, 0.88) 70%,
-    var(--color-bg) 100%
+    rgba(244, 244, 241, 0.0) 0vh,
+    rgba(244, 244, 241, 0.35) 20vh,
+    rgba(244, 244, 241, 0.70) 50vh,
+    rgba(244, 244, 241, 0.92) 80vh,
+    var(--color-bg) 110vh
   );
   pointer-events: none;
 }
@@ -45,7 +47,7 @@
   z-index: 1;
   width: 100%;
   max-width: 880px;
-  padding: 0 24px;
+  padding: 0 20px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -721,4 +723,48 @@
   color: var(--color-text-muted);
   text-align: center;
   padding: 16px 0;
+}
+
+/* ── Mobile ── */
+
+@media (max-width: 680px) {
+  .page {
+    padding-top: 60px;
+    padding-bottom: 40px;
+  }
+
+  .greeting {
+    font-size: 26px;
+  }
+
+  .columns {
+    grid-template-columns: 1fr;
+  }
+
+  .ctaTopRow {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .ctaLink {
+    font-size: 12px;
+  }
+
+  .reportCard {
+    min-width: 160px;
+    max-width: 200px;
+  }
+
+  .modalCard {
+    margin: 0 16px;
+    padding: 22px 18px 20px;
+  }
+
+  .modalGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .modalFieldFull {
+    grid-column: span 1;
+  }
 }

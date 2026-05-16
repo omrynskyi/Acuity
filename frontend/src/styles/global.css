@@ -27,9 +27,18 @@
   --font-display: 'Nanum Myeongjo', Georgia, serif;
 }
 
-html, body {
+html {
+  /* Extend the hero image onto the html element so iOS overscroll rubber-band
+     reveals clouds instead of a blank gap */
+  background-image: url('/hero.jpg');
+  background-size: cover;
+  background-position: center 20%;
+  background-attachment: fixed;
+}
+
+body {
   height: 100%;
-  background-color: var(--color-bg);
+  background-color: transparent;
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 15px;

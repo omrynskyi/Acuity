@@ -373,13 +373,25 @@
 }
 
 @media (max-width: 640px) {
+  .container {
+    padding: 60px 16px 40px;
+  }
+
   .controls {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
+  .searchBox {
+    min-width: 0;
+  }
+
   .filters {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
   }
 }

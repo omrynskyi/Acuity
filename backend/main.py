@@ -66,9 +66,12 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid token")
 
 # Frontend is served separately by Vite during dev; allow it in.
+# We also allow any Brev origin (.brevlab.com or .brev.sh) to support the NemoClaw demo environment.
+origins = os.environ.get("CORS_ALLOW_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ALLOW_ORIGINS", "*").split(","),
+    allow_origins=origins,
+    allow_origin_regex=r"https://.*\.brev(lab\.com|\.sh)",
     allow_methods=["*"],
     allow_headers=["*"],
 )
