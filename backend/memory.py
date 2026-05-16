@@ -48,6 +48,18 @@ class SessionMemory:
         return new_pairs, cached_pairs, cached_syntheses
 
 
+def pair_cache_key(drug_a: NormalizedDrug, drug_b: NormalizedDrug) -> str:
+    """Canonical cache key for a drug pair — RxCUI-based when both are resolved."""
+    if drug_a.rxcui and drug_b.rxcui:
+        a, b = sorted([drug_a.rxcui, drug_b.rxcui])
+    else:
+        a, b = sorted([
+            (drug_a.generic_name or drug_a.input_name).lower(),
+            (drug_b.generic_name or drug_b.input_name).lower(),
+        ])
+    return f"{a}|{b}"
+
+
 _lock = threading.Lock()
 _STORE: dict[str, SessionMemory] = {}
 

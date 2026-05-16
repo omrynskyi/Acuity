@@ -11,6 +11,7 @@ import asyncio
 import logging
 import os
 import secrets
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
 from supabase import Client, create_client
@@ -85,6 +86,19 @@ def _do_store(session_id: str, new_drug: str, drugs_checked: list[str], report_d
         sb.table("interactions").insert(rows).execute()
 
 
+def get_regimen_for_profile(profile_id: str) -> list[dict]:
+    """Return active (not removed) regimen rows for a profile, ordered by sort_order."""
+    res = (
+        _client()
+        .table("regimen")
+        .select("*")
+        .eq("profile_id", profile_id)
+        .is_("removed_at", "null")
+        .order("sort_order")
+        .execute()
+    )
+    return res.data or []
+
 
 def get_profile_by_user_id(user_id: str) -> dict | None:
     res = _client().table("profiles").select("*").eq("user_id", user_id).maybe_single().execute()
@@ -117,94 +131,67 @@ def create_profile(user_id: str, name: str, age: int, sex: str, height: str, wei
     return res.data[0]
 
 
-# --------------------------------------------------------------------------- #
-# User-data queries (called by backend/routers/user.py)
-# All queries are scoped by profile_id — no user can see another user's rows.
-# --------------------------------------------------------------------------- #
+def _do_cache_synthesis(
+    pair_key: str,
+    drug_a: str,
+    drug_b: str,
+    synthesis_dict: dict,
+    ttl_days: int | None,
+) -> None:
+    expires_at = (
+        (datetime.now(timezone.utc) + timedelta(days=ttl_days)).isoformat()
+        if ttl_days is not None
+        else None
+    )
+    _client().table("interaction_cache").upsert(
+        {
+            "pair_key": pair_key,
+            "drug_a": drug_a,
+            "drug_b": drug_b,
+            "synthesis": synthesis_dict,
+            "expires_at": expires_at,
+        },
+        on_conflict="pair_key",
+    ).execute()
 
-def update_profile_fields(profile_id: str, patch: dict) -> dict:
-    res = _client().table("profiles").update(patch).eq("id", profile_id).execute()
-    return res.data[0]
+
+async def cache_synthesis(
+    pair_key: str,
+    drug_a: str,
+    drug_b: str,
+    synthesis_dict: dict,
+    ttl_days: int | None = None,
+) -> None:
+    """Persist a synthesized interaction. Fire-and-forget via asyncio.create_task()."""
+    try:
+        await asyncio.to_thread(_do_cache_synthesis, pair_key, drug_a, drug_b, synthesis_dict, ttl_days)
+    except Exception:
+        log.exception("interaction_cache write failed — result still returned to client")
 
 
-def get_regimen(profile_id: str) -> list[dict]:
+async def get_cached_syntheses_batch(pair_keys: list[str]) -> dict[str, dict]:
+    """Batch-fetch cached syntheses by pair key. Returns {pair_key: synthesis_dict}."""
+    if not pair_keys:
+        return {}
+    try:
+        return await asyncio.to_thread(_do_get_cached_syntheses_simple, pair_keys)
+    except Exception:
+        log.exception("interaction_cache read failed — treating all pairs as uncached")
+        return {}
+
+
+def _do_get_cached_syntheses_simple(pair_keys: list[str]) -> dict[str, dict]:
     res = (
-        _client().table("regimen")
-        .select("*")
-        .eq("profile_id", profile_id)
-        .is_("removed_at", "null")
-        .order("sort_order")
+        _client()
+        .table("interaction_cache")
+        .select("pair_key, synthesis")
+        .in_("pair_key", pair_keys)
         .execute()
     )
-    return res.data
-
-
-def add_regimen_entry(profile_id: str, drug: str, dose: str | None, frequency: str | None) -> dict:
-    res = _client().table("regimen").insert({
-        "profile_id": profile_id,
-        "input_name": drug,
-        "dose": dose,
-        "frequency": frequency,
-        "found": False,
-        "brand_names": [],
-    }).execute()
-    return res.data[0]
-
-
-def soft_delete_regimen(profile_id: str, entry_id: str) -> None:
-    from datetime import datetime, timezone
-    _client().table("regimen").update(
-        {"removed_at": datetime.now(timezone.utc).isoformat()}
-    ).eq("id", entry_id).eq("profile_id", profile_id).execute()
-
-
-def update_regimen_entry(profile_id: str, entry_id: str, patch: dict) -> dict:
-    res = (
-        _client().table("regimen")
-        .update(patch)
-        .eq("id", entry_id)
-        .eq("profile_id", profile_id)
-        .execute()
-    )
-    return res.data[0]
-
-
-def list_user_sessions(profile_id: str, limit: int = 20) -> list[dict]:
-    res = (
-        _client().table("sessions")
-        .select("id,new_drug,drugs_checked,overall_severity,generated_at,created_at")
-        .eq("profile_id", profile_id)
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    return res.data
-
-
-def get_user_session(profile_id: str, session_id: str) -> dict | None:
-    res = (
-        _client().table("sessions")
-        .select("*")
-        .eq("id", session_id)
-        .eq("profile_id", profile_id)
-        .maybe_single()
-        .execute()
-    )
-    return res.data
-
-
-def get_session_interactions(profile_id: str, session_id: str) -> list[dict]:
-    sess = get_user_session(profile_id, session_id)
-    if not sess:
-        return []
-    res = (
-        _client().table("interactions")
-        .select("*")
-        .eq("session_id", session_id)
-        .order("sort_order")
-        .execute()
-    )
-    return res.data
+    result: dict[str, dict] = {}
+    for row in res.data or []:
+        result[row["pair_key"]] = row["synthesis"]
+    return result
 
 
 async def store_session(
