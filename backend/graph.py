@@ -74,7 +74,7 @@ async def intake_node(state: AcuityState) -> AcuityState:
     # only check pairs that involve that drug rather than every C(n,2) pair.
     target = (state.get("target_drug") or "").strip().lower()
     if target:
-        pairs = [p for p in all_pairs if target in (p[0].lower(), p[1].lower())]
+        pairs = [p for p in all_pairs if target in p]
     else:
         pairs = all_pairs
 

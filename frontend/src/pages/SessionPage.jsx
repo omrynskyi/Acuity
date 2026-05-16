@@ -3,8 +3,9 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, Mail, PlusCircle, CheckCircle, ExternalLink, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import DrugStatusCard from '../components/DrugStatusCard.jsx';
+import { capitalize } from '../lib/utils.js';
 import InteractionCard from '../components/InteractionCard.jsx';
-import { streamAnalyzeRegimen } from '../api/index.js';
+import { streamAnalyzeDrug } from '../api/index.js';
 import { fetchSession, fetchProfile, fetchRegimen, addDrugToRegimen } from '../lib/db.js';
 import { SOURCE_META } from '../lib/constants.js';
 import styles from './SessionPage.module.css';
@@ -75,9 +76,9 @@ export default function SessionPage() {
     }
 
     // Fresh-analysis mode: stream from backend.
-    const allDrugs = [...regimen, newDrug.toLowerCase()];
-
-    streamAnalyzeRegimen(allDrugs, id !== 'pending' ? id : undefined, {
+    // Use the drug-specific endpoint so only pairs involving the new drug are checked,
+    // not every existing-regimen pair.
+    streamAnalyzeDrug(newDrug.toLowerCase(), id !== 'pending' ? id : undefined, {
       onEvent({ type, data }) {
         if (type === 'intake_done') {
           setStreamPhase('intake');
@@ -455,8 +456,4 @@ function InteractionGroups({ interactions, newDrug }) {
   );
 }
 
-function capitalize(s) {
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
 

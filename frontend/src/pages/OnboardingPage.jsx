@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 import { updateProfileDoctor, addDrugToRegimen } from '../lib/db.js';
+import { capitalize } from '../lib/utils.js';
+import { streamAnalyzeOnboarding } from '../api/index.js';
 import styles from './OnboardingPage.module.css';
 
 async function fetchSuggestions(term) {
@@ -105,9 +107,45 @@ export default function OnboardingPage() {
       }
     } catch (err) {
       console.error('Failed to save medications:', err);
-    } finally {
+      navigate('/');
+      return;
+    }
+
+    if (drugs.length < 2) {
+      navigate('/');
+      return;
+    }
+
+    // Step 3: run full-regimen analysis and navigate to the report
+    setStep(3);
+    try {
+      await streamAnalyzeOnboarding(undefined, {
+        onEvent({ type, data }) {
+          if (type === 'report_done') {
+            navigate(`/session/${data.session_id}`);
+          }
+        },
+        onError(err) {
+          console.error('Onboarding analysis failed:', err);
+          navigate('/');
+        },
+      });
+    } catch (err) {
+      console.error('Onboarding analysis failed:', err);
       navigate('/');
     }
+  }
+
+  if (step === 3) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.logo}>Acuity</div>
+        <h1 className={styles.headline}>Checking your medications…</h1>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 14, textAlign: 'center' }}>
+          Analyzing all interactions in your regimen. This takes a few seconds.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -215,7 +253,3 @@ export default function OnboardingPage() {
   );
 }
 
-function capitalize(s) {
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}

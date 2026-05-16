@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { capitalize } from '../lib/utils.js';
 import { ChevronLeft, Search, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import CustomSelect from '../components/CustomSelect.jsx';
 import {
@@ -319,11 +320,6 @@ export default function ReportsPage() {
       </div>
     </div>
   );
-}
-
-function capitalize(s) {
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function formatDate(iso) {

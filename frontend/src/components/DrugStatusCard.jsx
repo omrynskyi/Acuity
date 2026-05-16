@@ -1,6 +1,7 @@
 import { CheckCircle, Loader2, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SOURCE_META } from '../lib/constants.js';
+import { capitalize } from '../lib/utils.js';
 import styles from './DrugStatusCard.module.css';
 
 // Show only the 3 most recent source events — card height is fixed
@@ -74,8 +75,4 @@ export default function DrugStatusCard({ drugName, status, sources = [], snippet
       </div>
     </div>
   );
-}
-
-function capitalize(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }

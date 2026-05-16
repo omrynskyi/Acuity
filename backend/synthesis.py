@@ -231,18 +231,18 @@ def _fallback_synthesize(
         for s in sources
     )
 
+    drug_a, drug_b = pair
     headline_map = {
-        Severity.MAJOR: f"Taking {pair[0]} with {pair[1]} may cause serious harm — consult your doctor before combining these.",
-        Severity.MODERATE: f"{pair[0].capitalize()} and {pair[1]} can interact; monitoring or dose adjustment may be needed.",
-        Severity.MINOR: f"{pair[0].capitalize()} and {pair[1]} have a mild interaction with limited clinical impact for most patients.",
+        Severity.MAJOR: f"Taking {drug_a} with {drug_b} may cause serious harm — consult your doctor before combining these.",
+        Severity.MODERATE: f"{drug_a.capitalize()} and {drug_b} can interact; monitoring or dose adjustment may be needed.",
+        Severity.MINOR: f"{drug_a.capitalize()} and {drug_b} have a mild interaction with limited clinical impact for most patients.",
     }
-    headline = headline_map.get(severity, f"No significant interaction signal found for {pair[0]} and {pair[1]}.")
+    headline = headline_map.get(severity, f"No significant interaction signal found for {drug_a} and {drug_b}.")
 
     source_names = ", ".join(
         s.replace("openfda_", "FDA ").replace("_", " ").title()
         for s in sorted(contributing_sources)
     )
-    drug_a, drug_b = pair
     reasoning_lines = [
         f"Taking {drug_a} and {drug_b} together carries a {severity.value}-level interaction risk"
         f" based on findings from {source_names}.",
