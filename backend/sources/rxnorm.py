@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Optional
 
 import httpx
@@ -19,6 +20,8 @@ log = logging.getLogger(__name__)
 
 RXNORM_BASE = "https://rxnav.nlm.nih.gov/REST"
 _TIMEOUT = httpx.Timeout(8.0, connect=4.0)
+
+_FORM_SUFFIX_RE = re.compile(r"\s*\([^)]*\)")
 
 
 async def _lookup_rxcui(client: httpx.AsyncClient, name: str) -> Optional[str]:
@@ -75,13 +78,16 @@ async def normalize_drug(name: str, *, client: Optional[httpx.AsyncClient] = Non
     if not name_clean:
         return NormalizedDrug(input_name=name, found=False)
 
+    # Strip dosage-form parentheticals like "(Oral Pill)", "(Tablet)" before querying
+    name_query = _FORM_SUFFIX_RE.sub("", name_clean).strip() or name_clean
+
     owned_client = client is None
     if owned_client:
         client = httpx.AsyncClient(timeout=_TIMEOUT)
 
     try:
         try:
-            rxcui = await _lookup_rxcui(client, name_clean)
+            rxcui = await _lookup_rxcui(client, name_query)
         except httpx.HTTPError as e:
             log.warning("rxnorm lookup failed for %r: %s", name_clean, e)
             return NormalizedDrug(input_name=name, found=False)

@@ -16,22 +16,53 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
+import jwt
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 load_dotenv()
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 
-from backend.db import create_profile, store_session  # noqa: E402
+from backend.db import create_profile, generate_pat_for_user, get_profile_by_pat, get_profile_by_user_id, get_regimen_for_profile, store_session  # noqa: E402
 from backend.graph import run_analysis, run_analysis_streaming  # noqa: E402
 from backend.memory import reset as reset_memory  # noqa: E402
 from backend.schemas import RegimenReport  # noqa: E402
 
 
 app = FastAPI(title="Acuity Drug Interaction API", version="0.1.0")
+
+# --------------------------------------------------------------------------- #
+# Auth
+# --------------------------------------------------------------------------- #
+
+_security = HTTPBearer(auto_error=False)
+
+
+async def get_current_user(
+    request: Request,
+    cred: HTTPAuthorizationCredentials = Depends(_security),
+) -> dict:
+    """Accept either a Supabase JWT (React) or a static API key (NemoClaw)."""
+    api_key = request.headers.get("x-api-key")
+    if api_key:
+        profile = await asyncio.to_thread(get_profile_by_pat, api_key)
+        if not profile:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        return {"user_id": profile["user_id"], "profile_id": profile["id"], "source": "api_key"}
+    if not cred:
+        raise HTTPException(status_code=401, detail="Missing credentials")
+    try:
+        payload = jwt.decode(cred.credentials, options={"verify_signature": False, "verify_exp": False})
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token: missing sub")
+        return {"user_id": user_id, "profile_id": None, "source": "jwt"}
+    except jwt.DecodeError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 # Frontend is served separately by Vite during dev; allow it in.
 app.add_middleware(
@@ -92,8 +123,17 @@ async def create_profile_endpoint(req: ProfileRequest) -> dict:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/tokens/generate")
+async def generate_token(user: dict = Depends(get_current_user)) -> dict:
+    """Generate (or rotate) the personal access token for the authenticated user."""
+    if user.get("source") != "jwt":
+        raise HTTPException(status_code=403, detail="Token generation requires user login")
+    token = await asyncio.to_thread(generate_pat_for_user, user["user_id"])
+    return {"token": token}
+
+
 @app.post("/api/analyze", response_model=AnalyzeResponse)
-async def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
+async def analyze(req: AnalyzeRequest, user: dict = Depends(get_current_user)) -> AnalyzeResponse:
     session_id = req.session_id or str(uuid.uuid4())
     try:
         state = await run_analysis(session_id, req.drugs)
@@ -102,8 +142,9 @@ async def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
         raise HTTPException(status_code=500, detail=f"pipeline failure: {e}")
     report = state["report"]
     new_drug = req.drugs[-1] if req.drugs else ""
+    profile_id = req.profile_id or _resolve_profile_id(user)
     asyncio.create_task(
-        store_session(session_id, new_drug, req.drugs, report.model_dump(), req.profile_id)
+        store_session(session_id, new_drug, req.drugs, report.model_dump(mode="json"), profile_id)
     )
     return AnalyzeResponse(
         session_id=session_id,
@@ -112,11 +153,29 @@ async def analyze(req: AnalyzeRequest) -> AnalyzeResponse:
     )
 
 
-async def _sse_generator(session_id: str, drugs: list[str]):
+def _resolve_profile_id(user: dict) -> Optional[str]:
+    """Return profile_id — already set for API-key callers, looked up for JWT callers."""
+    if user.get("profile_id"):
+        return user["profile_id"]
+    try:
+        profile = get_profile_by_user_id(user["user_id"])
+        return profile["id"] if profile else None
+    except Exception:
+        logging.warning("Could not resolve profile_id for user %s", user.get("user_id"))
+        return None
+
+
+async def _sse_generator(session_id: str, drugs: list[str], profile_id: Optional[str] = None):
     try:
         async for event_type, payload in run_analysis_streaming(session_id, drugs):
             data_line = json.dumps(payload, default=str)
             yield f"event: {event_type}\ndata: {data_line}\n\n"
+            if event_type == "report_done":
+                # Persist the completed report to Supabase so the home screen's
+                # "My Reports" list is populated when using the streaming path.
+                report_dict = json.loads(json.dumps(payload.get("report", {}), default=str))
+                new_drug = drugs[-1] if drugs else ""
+                asyncio.create_task(store_session(session_id, new_drug, drugs, report_dict, profile_id))
     except Exception as e:
         logging.exception("SSE generator crashed")
         err = json.dumps({"detail": str(e), "stage": "unknown"}, default=str)
@@ -124,10 +183,11 @@ async def _sse_generator(session_id: str, drugs: list[str]):
 
 
 @app.post("/api/analyze/stream")
-async def analyze_stream(req: AnalyzeRequest) -> StreamingResponse:
+async def analyze_stream(req: AnalyzeRequest, user: dict = Depends(get_current_user)) -> StreamingResponse:
     session_id = req.session_id or str(uuid.uuid4())
+    profile_id = req.profile_id or _resolve_profile_id(user)
     return StreamingResponse(
-        _sse_generator(session_id, req.drugs),
+        _sse_generator(session_id, req.drugs, profile_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -137,8 +197,96 @@ async def analyze_stream(req: AnalyzeRequest) -> StreamingResponse:
     )
 
 
+# --------------------------------------------------------------------------- #
+# Profile-aware analyze endpoints
+# --------------------------------------------------------------------------- #
+
+class AnalyzeDrugRequest(BaseModel):
+    drug: str = Field(..., description="New drug to check against the user's saved regimen.")
+    session_id: Optional[str] = Field(None, description="Reuse for memory continuity.")
+
+
+async def _get_profile_regimen(user: dict) -> tuple[str, list[str]]:
+    """Resolve profile_id and return (profile_id, list_of_drug_names) from Supabase."""
+    profile_id = user.get("profile_id") or _resolve_profile_id(user)
+    if not profile_id:
+        raise HTTPException(status_code=404, detail="No profile found for this user")
+    rows = await asyncio.to_thread(get_regimen_for_profile, profile_id)
+    drug_names = [r["generic_name"] or r["input_name"] for r in rows]
+    return profile_id, drug_names
+
+
+@app.post("/api/analyze/drug", response_model=AnalyzeResponse)
+async def analyze_drug(req: AnalyzeDrugRequest, user: dict = Depends(get_current_user)) -> AnalyzeResponse:
+    """Analyze one new drug against every drug already in the user's saved regimen."""
+    profile_id, existing = await _get_profile_regimen(user)
+    drug_list = existing + [req.drug] if req.drug not in existing else existing
+    if len(drug_list) < 2:
+        raise HTTPException(status_code=422, detail="Regimen needs at least one other drug to compare against")
+    session_id = req.session_id or str(uuid.uuid4())
+    try:
+        state = await run_analysis(session_id, drug_list)
+    except Exception as e:
+        logging.exception("analyze/drug pipeline failed")
+        raise HTTPException(status_code=500, detail=f"pipeline failure: {e}")
+    report = state["report"]
+    asyncio.create_task(store_session(session_id, req.drug, drug_list, report.model_dump(mode="json"), profile_id))
+    return AnalyzeResponse(session_id=session_id, report=report, durations_ms=state["durations_ms"])
+
+
+@app.post("/api/analyze/drug/stream")
+async def analyze_drug_stream(req: AnalyzeDrugRequest, user: dict = Depends(get_current_user)) -> StreamingResponse:
+    """SSE stream: analyze one new drug against the user's saved regimen."""
+    profile_id, existing = await _get_profile_regimen(user)
+    drug_list = existing + [req.drug] if req.drug not in existing else existing
+    if len(drug_list) < 2:
+        raise HTTPException(status_code=422, detail="Regimen needs at least one other drug to compare against")
+    session_id = req.session_id or str(uuid.uuid4())
+    return StreamingResponse(
+        _sse_generator(session_id, drug_list, profile_id),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Nginx-Buffering": "no", "Connection": "keep-alive"},
+    )
+
+
+class OnboardingAnalyzeRequest(BaseModel):
+    session_id: Optional[str] = Field(None, description="Reuse for memory continuity.")
+
+
+@app.post("/api/analyze/onboarding", response_model=AnalyzeResponse)
+async def analyze_onboarding(req: OnboardingAnalyzeRequest, user: dict = Depends(get_current_user)) -> AnalyzeResponse:
+    """Analyze every drug pair in the user's saved regimen — used during onboarding."""
+    profile_id, drug_list = await _get_profile_regimen(user)
+    if len(drug_list) < 2:
+        raise HTTPException(status_code=422, detail="Regimen needs at least 2 drugs to analyze pairs")
+    session_id = req.session_id or str(uuid.uuid4())
+    try:
+        state = await run_analysis(session_id, drug_list)
+    except Exception as e:
+        logging.exception("analyze/onboarding pipeline failed")
+        raise HTTPException(status_code=500, detail=f"pipeline failure: {e}")
+    report = state["report"]
+    new_drug = drug_list[-1] if drug_list else ""
+    asyncio.create_task(store_session(session_id, new_drug, drug_list, report.model_dump(mode="json"), profile_id))
+    return AnalyzeResponse(session_id=session_id, report=report, durations_ms=state["durations_ms"])
+
+
+@app.post("/api/analyze/onboarding/stream")
+async def analyze_onboarding_stream(req: OnboardingAnalyzeRequest, user: dict = Depends(get_current_user)) -> StreamingResponse:
+    """SSE stream: analyze every drug pair in the user's saved regimen (onboarding)."""
+    profile_id, drug_list = await _get_profile_regimen(user)
+    if len(drug_list) < 2:
+        raise HTTPException(status_code=422, detail="Regimen needs at least 2 drugs to analyze pairs")
+    session_id = req.session_id or str(uuid.uuid4())
+    return StreamingResponse(
+        _sse_generator(session_id, drug_list, profile_id),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Nginx-Buffering": "no", "Connection": "keep-alive"},
+    )
+
+
 @app.delete("/api/session/{session_id}")
-async def reset_session(session_id: str) -> dict:
+async def reset_session(session_id: str, _user: dict = Depends(get_current_user)) -> dict:
     reset_memory(session_id)
     return {"status": "reset", "session_id": session_id}
 

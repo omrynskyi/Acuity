@@ -97,6 +97,85 @@
   border-top: 1px solid var(--color-border);
 }
 
+/* ── Source log (loading phase) ── */
+
+.sourceLog {
+  list-style: none;
+  padding: 0;
+  margin: 16px 80px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sourceLogItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-light);
+}
+
+.sourceLogDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent, #4f8ef7);
+  flex-shrink: 0;
+}
+
+.sourceLogLink {
+  color: var(--color-text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.sourceLogLink:hover {
+  text-decoration: underline;
+}
+
+.sourceLogPair {
+  color: var(--color-text-muted);
+}
+
+.sourceLogCount {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+/* ── Sources consulted (report view) ── */
+
+.sourcesSection {
+  margin-top: 28px;
+}
+
+.sourcesList {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.sourcesItem {
+  background: var(--color-surface, #f5f5f5);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.sourcesLink {
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.sourcesLink:hover {
+  text-decoration: underline;
+}
+
 /* ── Error ── */
 
 .errorMsg {

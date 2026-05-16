@@ -205,6 +205,10 @@ class RegimenReport(BaseModel):
     patient_friendly_summary: Optional[str] = Field(
         None, description="Plain-language version of overall_summary."
     )
+    sources_consulted: list[str] = Field(
+        default_factory=list,
+        description="Unique source names that returned data for at least one pair.",
+    )
 
 
 # --------------------------------------------------------------------------- #

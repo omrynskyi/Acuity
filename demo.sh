@@ -3,11 +3,11 @@
 # every demo surface: real Decagon citations, honest coverage gaps,
 # memory-delta follow-up, and the NemoClaw policy endpoints.
 #
-#   ./demo.sh            # default port 8000
+#   ./demo.sh            # default port 8080 (matches frontend VITE_API_URL)
 #   PORT=8765 ./demo.sh  # override
 set -euo pipefail
 
-PORT="${PORT:-8000}"
+PORT="${PORT:-8080}"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 

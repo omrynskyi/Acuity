@@ -91,6 +91,7 @@ async def _patient_summary(clinician_summary: str, interactions: list[Synthesize
             user=body,
             temperature=0.2,
             max_tokens=300,
+            timeout=60.0,
         )
         text = (raw or "").strip()
         if text:
@@ -125,6 +126,7 @@ async def build_report(
     interactions = sorted(pair_results, key=_sort_key)
     overall = _overall_summary(interactions)
     patient = await _patient_summary(overall, interactions)
+    sources_consulted = sorted({c.source for i in interactions for c in i.citations})
     return RegimenReport(
         regimen=regimen,
         generated_at=datetime.now(timezone.utc),
@@ -133,4 +135,5 @@ async def build_report(
         new_pairs=new_pairs or [],
         cached_pairs=cached_pairs or [],
         patient_friendly_summary=patient,
+        sources_consulted=sources_consulted,
     )

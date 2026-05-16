@@ -1,9 +1,18 @@
+import { supabase } from '../lib/supabase';
+
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+
+async function authHeaders() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token
+    ? { 'Authorization': `Bearer ${session.access_token}` }
+    : {};
+}
 
 export async function analyzeRegimen(drugs, sessionId, profileId) {
   const res = await fetch(`${BASE}/api/analyze`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
     body: JSON.stringify({
       drugs,
       session_id: sessionId ?? undefined,
@@ -21,7 +30,7 @@ export function getSourceFindings() {
 export async function streamAnalyzeRegimen(drugs, sessionId, { onEvent, onError } = {}) {
   const res = await fetch(`${BASE}/api/analyze/stream`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
     body: JSON.stringify({ drugs, session_id: sessionId ?? undefined }),
   });
   if (!res.ok) {

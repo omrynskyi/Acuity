@@ -1,1 +1,1 @@
-export { analyzeRegimen, getSourceFindings } from './real.js';
+export { analyzeRegimen, getSourceFindings, streamAnalyzeRegimen } from './real.js';

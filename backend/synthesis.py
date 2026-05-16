@@ -38,13 +38,17 @@ PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "synthesis.md
 
 
 def _system_prompt() -> str:
-    """Load the synthesis prompt, stripping the user-facing markdown shell.
+    """Load the synthesis prompt, stripping the human-readable markdown shell.
 
-    The prompt file is structured for humans to read; we strip the trailing
-    'End of system prompt.' line but keep everything else verbatim so prompt
-    edits in BE-09 don't require code changes.
+    The file has a meta-commentary header above '## SYSTEM' and a trailing
+    sentinel 'End of system prompt.' — neither should reach the model.
     """
-    return PROMPT_PATH.read_text().strip()
+    text = PROMPT_PATH.read_text()
+    marker = "## SYSTEM\n"
+    idx = text.find(marker)
+    if idx != -1:
+        text = text[idx + len(marker):]
+    return text.replace("End of system prompt.", "").strip()
 
 
 def _render_findings(pair: tuple[str, str], sources: list[SourceFindings]) -> str:
@@ -280,6 +284,7 @@ async def synthesize_pair(
             user=_render_findings(pair, sources),
             temperature=0.1,
             max_tokens=900,
+            timeout=120.0,
         )
     except LLMUnavailable as e:
         log.info("synthesis fallback: %s", e)

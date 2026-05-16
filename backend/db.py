@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import secrets
 from functools import lru_cache
 
 from supabase import Client, create_client
@@ -82,6 +83,36 @@ def _do_store(session_id: str, new_drug: str, drugs_checked: list[str], report_d
             for i, ix in enumerate(interactions)
         ]
         sb.table("interactions").insert(rows).execute()
+
+
+def get_regimen_for_profile(profile_id: str) -> list[dict]:
+    """Return active (not removed) regimen rows for a profile, ordered by sort_order."""
+    res = (
+        _client()
+        .table("regimen")
+        .select("*")
+        .eq("profile_id", profile_id)
+        .is_("removed_at", "null")
+        .order("sort_order")
+        .execute()
+    )
+    return res.data or []
+
+
+def get_profile_by_user_id(user_id: str) -> dict | None:
+    res = _client().table("profiles").select("*").eq("user_id", user_id).maybe_single().execute()
+    return res.data
+
+
+def get_profile_by_pat(token: str) -> dict | None:
+    res = _client().table("profiles").select("*").eq("pat", token).maybe_single().execute()
+    return res.data
+
+
+def generate_pat_for_user(user_id: str) -> str:
+    token = secrets.token_urlsafe(32)
+    _client().table("profiles").update({"pat": token}).eq("user_id", user_id).execute()
+    return token
 
 
 def create_profile(user_id: str, name: str, age: int, sex: str, height: str, weight: str) -> dict:

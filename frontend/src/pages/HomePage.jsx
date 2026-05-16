@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, Search, ChevronRight, Trash2 } from 'lucide-react';
+import { Edit2, Search, ChevronRight, Trash2, Settings } from 'lucide-react';
 import DrugRow from '../components/DrugRow.jsx';
 import CustomSelect from '../components/CustomSelect.jsx';
 import { fetchProfile, fetchRegimen, fetchRecentSessions, updateProfile, updateRegimenDrug, addDrugToRegimen, removeDrugFromRegimen } from '../lib/db.js';
@@ -21,6 +21,7 @@ async function fetchDrugSuggestions(term) {
 export default function HomePage() {
   const navigate = useNavigate();
   const [newDrug, setNewDrug] = useState('');
+  const [newDrugSuggestions, setNewDrugSuggestions] = useState([]);
   const [profile, setProfile] = useState(null);
   const [regimen, setRegimen] = useState([]);
   const [pastSessions, setPastSessions] = useState([]);
@@ -35,11 +36,7 @@ export default function HomePage() {
   const [medSuggestions, setMedSuggestions] = useState([]);
   const [medSaving, setMedSaving] = useState(false);
   const suggestRef = useRef(null);
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    navigate('/auth');
-  }
+  const newDrugSuggestRef = useRef(null);
 
   function loadData() {
     fetchProfile()
@@ -79,13 +76,30 @@ export default function HomePage() {
     return () => clearTimeout(t);
   }, [medQuery]);
 
+  // ── New Drug Autocomplete ──────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!newDrug.trim()) { setNewDrugSuggestions([]); return; }
+    const t = setTimeout(() =>
+      fetchDrugSuggestions(newDrug).then(setNewDrugSuggestions).catch(() => setNewDrugSuggestions([])),
+      250
+    );
+    return () => clearTimeout(t);
+  }, [newDrug]);
+
   useEffect(() => {
     function onDown(e) {
       if (suggestRef.current && !suggestRef.current.contains(e.target)) setMedSuggestions([]);
+      if (newDrugSuggestRef.current && !newDrugSuggestRef.current.contains(e.target)) setNewDrugSuggestions([]);
     }
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
+
+  function selectNewDrug(name) {
+    setNewDrug(name);
+    setNewDrugSuggestions([]);
+  }
 
   function addMedEntry(name) {
     if (!medList.find(d => d.input_name === name.toLowerCase())) {
@@ -196,7 +210,13 @@ export default function HomePage() {
   }
 
   function handleKeyDown(e) {
-    if (e.key === 'Enter') handleCheck();
+    if (e.key === 'Enter') {
+      if (newDrugSuggestions.length > 0) {
+        selectNewDrug(newDrugSuggestions[0]);
+      } else {
+        handleCheck();
+      }
+    }
   }
 
   if (!profile) return (
@@ -212,10 +232,11 @@ export default function HomePage() {
     >
       <div className={styles.logo}>Acuity</div>
       <button
-        onClick={handleSignOut}
-        style={{ position: 'absolute', top: 24, right: 28, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 13, opacity: 0.6 }}
+        onClick={() => navigate('/settings')}
+        style={{ position: 'absolute', top: 20, right: 28, background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6, zIndex: 2, display: 'flex', alignItems: 'center' }}
+        aria-label="Settings"
       >
-        Sign out
+        <Settings size={18} />
       </button>
 
       <div className={styles.content}>
@@ -245,14 +266,26 @@ export default function HomePage() {
                 </span>
               </div>
               <div className={styles.inputRow}>
-                <input
-                  className={styles.drugInput}
-                  type="text"
-                  placeholder="Enter medicine name"
-                  value={newDrug}
-                  onChange={(e) => setNewDrug(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
+                <div className={styles.newDrugSearchWrap} ref={newDrugSuggestRef}>
+                  <input
+                    className={styles.drugInput}
+                    type="text"
+                    placeholder="Enter medicine name"
+                    value={newDrug}
+                    onChange={(e) => setNewDrug(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    autoComplete="off"
+                  />
+                  {newDrugSuggestions.length > 0 && (
+                    <ul className={styles.newDrugSuggestList}>
+                      {newDrugSuggestions.slice(0, 6).map(name => (
+                        <li key={name} className={styles.newDrugSuggestItem} onMouseDown={() => selectNewDrug(name)}>
+                          {name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
                 <button
                   className={styles.checkBtn}
                   onClick={handleCheck}

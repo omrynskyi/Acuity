@@ -22,16 +22,29 @@ async def fanout_pair(
     drug_b: str,
     *,
     client: httpx.AsyncClient | None = None,
+    event_sink: asyncio.Queue | None = None,
 ) -> list[SourceFindings]:
     """Run all three source agents concurrently for one drug pair."""
     owned = client is None
     if owned:
         client = httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=4.0))
+
+    async def _run_source(name: str, coro) -> SourceFindings:
+        result = await coro
+        if event_sink is not None:
+            await event_sink.put(("source_result", {
+                "pair": [drug_a, drug_b],
+                "source": name,
+                "coverage": result.coverage.value,
+                "n_findings": len(result.findings),
+            }))
+        return result
+
     try:
         results = await asyncio.gather(
-            query_openfda_label(drug_a, drug_b, client=client),
-            query_faers(drug_a, drug_b, client=client),
-            query_twosides(drug_a, drug_b),
+            _run_source("openfda_label", query_openfda_label(drug_a, drug_b, client=client)),
+            _run_source("openfda_faers", query_faers(drug_a, drug_b, client=client)),
+            _run_source("twosides", query_twosides(drug_a, drug_b)),
             return_exceptions=False,
         )
         return list(results)
@@ -44,6 +57,7 @@ async def fanout_pairs(
     pairs: Iterable[tuple[str, str]],
     *,
     concurrency: int = 4,
+    event_sink: asyncio.Queue | None = None,
 ) -> dict[tuple[str, str], list[SourceFindings]]:
     """Run fan-out for multiple pairs with a concurrency cap.
 
@@ -57,7 +71,7 @@ async def fanout_pairs(
     async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=4.0)) as client:
         async def run(pair: tuple[str, str]) -> None:
             async with sem:
-                out[pair] = await fanout_pair(pair[0], pair[1], client=client)
+                out[pair] = await fanout_pair(pair[0], pair[1], client=client, event_sink=event_sink)
 
         await asyncio.gather(*(run(p) for p in pairs))
     return out

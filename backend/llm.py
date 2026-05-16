@@ -70,7 +70,9 @@ async def chat(
 
     owned = client is None
     if owned:
-        client = httpx.AsyncClient(timeout=timeout)
+        client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10.0, read=timeout, write=30.0, pool=5.0)
+        )
     try:
         r = await client.post(
             f"{_base_url()}/chat/completions",
@@ -90,6 +92,12 @@ async def chat(
             await client.aclose()
 
 
+def _supports_json_object_format() -> bool:
+    """LM Studio only accepts json_schema/text; hosted NVIDIA NIM accepts json_object."""
+    base = _base_url()
+    return "127.0.0.1" not in base and "localhost" not in base
+
+
 async def chat_json(
     *,
     model: str,
@@ -107,7 +115,7 @@ async def chat_json(
         user=user,
         temperature=temperature,
         max_tokens=max_tokens,
-        response_format={"type": "json_object"},
+        response_format={"type": "json_object"} if _supports_json_object_format() else None,
         client=client,
         timeout=timeout,
     )

@@ -232,15 +232,29 @@ async def run_analysis_streaming(
     for synth in state.get("syntheses", []):
         yield ("synthesis_result", {**synth.model_dump(), "cached": True, "duration_ms": 0})
 
-    # Stage 3: fanout (runs atomically per pair across all 3 sources)
+    # Stage 3: fanout — stream per-source events as each agent completes
+    new_pairs = state.get("new_pairs", [])
     try:
-        state = await fanout_node(state)
+        if new_pairs:
+            fanout_queue: asyncio.Queue = asyncio.Queue()
+            fanout_task = asyncio.create_task(
+                fanout_pairs(new_pairs, concurrency=4, event_sink=fanout_queue)
+            )
+            expected_events = len(new_pairs) * 3  # 3 sources per pair
+            for _ in range(expected_events):
+                ev_type, payload = await fanout_queue.get()
+                yield (ev_type, payload)
+            findings = await fanout_task
+        else:
+            findings = {}
     except Exception as e:
         yield ("error", {"detail": str(e), "stage": "fanout"})
         return
 
+    durations = state["durations_ms"]
+    state = {**state, "source_findings": findings, "durations_ms": durations}
+
     # Stage 4: synthesis — run all pairs in parallel, yield each result as it finishes
-    new_pairs = state.get("new_pairs", [])
     if new_pairs:
         findings = state["source_findings"]
         queue: asyncio.Queue = asyncio.Queue()
