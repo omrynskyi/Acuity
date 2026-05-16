@@ -7,8 +7,6 @@ import { fetchProfile, fetchRegimen, fetchRecentSessions, updateProfile, updateR
 import { supabase } from '../lib/supabase.js';
 import styles from './HomePage.module.css';
 
-const heroImg = '/hero.jpg';
-
 const FREQ_OPTIONS = ['daily', 'twice daily', 'weekly', 'custom'];
 
 async function fetchDrugSuggestions(term) {
@@ -221,16 +219,13 @@ export default function HomePage() {
   }
 
   if (!profile) return (
-    <div className={styles.page} style={{ backgroundImage: `url(${heroImg})` }}>
+    <div className={styles.page}>
       <div className={styles.logo}>Acuity</div>
     </div>
   );
 
   return (
-    <div
-      className={styles.page}
-      style={{ backgroundImage: `url(${heroImg})` }}
-    >
+    <div className={styles.page}>
       <div className={styles.logo}>Acuity</div>
       <button
         onClick={() => navigate('/settings')}
