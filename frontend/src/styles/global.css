@@ -29,6 +29,9 @@
 
 html {
   background-color: #c8d9e6;
+  background-image: url('/hero.jpg');
+  background-size: cover;
+  background-position: center 20%;
 }
 
 /* Real DOM fixed element — inset:0 is more reliable than width/height on iOS Safari.
