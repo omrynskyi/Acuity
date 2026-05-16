@@ -29,6 +29,8 @@ from backend.schemas import (
     SourceFindings,
     SynthesizedInteraction,
 )
+from backend.sources.arxiv_search import query_arxiv
+from backend.sources.brave_search import query_brave
 from backend.sources.rxnorm import normalize_regimen
 from backend.synthesis import synthesize_pair
 
@@ -129,6 +131,46 @@ async def synthesis_node(state: AcuityState) -> AcuityState:
     }
 
 
+async def arxiv_node(state: AcuityState) -> AcuityState:
+    """Search arXiv for peer-reviewed papers on each new drug pair."""
+    t0 = datetime.now(timezone.utc)
+    new_pairs = state["new_pairs"]
+    findings: dict[tuple[str, str], list[SourceFindings]] = dict(state.get("source_findings") or {})
+    if new_pairs:
+        results = await asyncio.gather(
+            *(query_arxiv(p[0], p[1]) for p in new_pairs),
+            return_exceptions=True,
+        )
+        for pair, result in zip(new_pairs, results):
+            if isinstance(result, SourceFindings):
+                findings.setdefault(pair, []).append(result)
+            else:
+                log.warning("arxiv error for %s: %s", pair, result)
+    durations = state["durations_ms"]
+    durations["arxiv_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
+    return {**state, "source_findings": findings, "durations_ms": durations}
+
+
+async def brave_search_node(state: AcuityState) -> AcuityState:
+    """Run a Brave web search for each new drug pair."""
+    t0 = datetime.now(timezone.utc)
+    new_pairs = state["new_pairs"]
+    findings: dict[tuple[str, str], list[SourceFindings]] = dict(state.get("source_findings") or {})
+    if new_pairs:
+        results = await asyncio.gather(
+            *(query_brave(p[0], p[1]) for p in new_pairs),
+            return_exceptions=True,
+        )
+        for pair, result in zip(new_pairs, results):
+            if isinstance(result, SourceFindings):
+                findings.setdefault(pair, []).append(result)
+            else:
+                log.warning("brave search error for %s: %s", pair, result)
+    durations = state["durations_ms"]
+    durations["brave_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
+    return {**state, "source_findings": findings, "durations_ms": durations}
+
+
 async def report_node(state: AcuityState) -> AcuityState:
     """Aggregate into a RegimenReport."""
     t0 = datetime.now(timezone.utc)
@@ -160,12 +202,16 @@ def build_graph() -> Any:
     g.add_node("intake", intake_node)
     g.add_node("memory", memory_node)
     g.add_node("fanout", fanout_node)
+    g.add_node("arxiv", arxiv_node)
+    g.add_node("brave_search", brave_search_node)
     g.add_node("synthesis", synthesis_node)
     g.add_node("report", report_node)
     g.set_entry_point("intake")
     g.add_edge("intake", "memory")
     g.add_edge("memory", "fanout")
-    g.add_edge("fanout", "synthesis")
+    g.add_edge("fanout", "arxiv")
+    g.add_edge("arxiv", "brave_search")
+    g.add_edge("brave_search", "synthesis")
     g.add_edge("synthesis", "report")
     g.add_edge("report", END)
     return g.compile()
@@ -253,6 +299,40 @@ async def run_analysis_streaming(
 
     durations = state["durations_ms"]
     state = {**state, "source_findings": findings, "durations_ms": durations}
+
+    # Stage 3b: arxiv — search for peer-reviewed papers per pair
+    try:
+        state = await arxiv_node(state)
+    except Exception as e:
+        yield ("error", {"detail": str(e), "stage": "arxiv"})
+        return
+    for pair in new_pairs:
+        sf_list = state["source_findings"].get(pair, [])
+        arxiv_sf = next((sf for sf in sf_list if sf.source == "arxiv"), None)
+        if arxiv_sf:
+            yield ("source_result", {
+                "pair": list(pair),
+                "source": "arxiv",
+                "coverage": arxiv_sf.coverage.value,
+                "n_findings": len(arxiv_sf.findings),
+            })
+
+    # Stage 3c: brave_search — web search per pair
+    try:
+        state = await brave_search_node(state)
+    except Exception as e:
+        yield ("error", {"detail": str(e), "stage": "brave_search"})
+        return
+    for pair in new_pairs:
+        sf_list = state["source_findings"].get(pair, [])
+        brave_sf = next((sf for sf in sf_list if sf.source == "brave_search"), None)
+        if brave_sf:
+            yield ("source_result", {
+                "pair": list(pair),
+                "source": "brave_search",
+                "coverage": brave_sf.coverage.value,
+                "n_findings": len(brave_sf.findings),
+            })
 
     # Stage 4: synthesis — run all pairs in parallel, yield each result as it finishes
     if new_pairs:

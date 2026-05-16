@@ -48,7 +48,7 @@ class Confidence(str, Enum):
     LOW = "low"
 
 
-SourceName = Literal["openfda_label", "openfda_faers", "twosides"]
+SourceName = Literal["openfda_label", "openfda_faers", "decagon", "arxiv", "brave_search"]
 FindingType = Literal["interaction", "adverse_event", "predicted_effect"]
 
 

@@ -1,9 +1,7 @@
-"""TWOSIDES source agent (BE-07), backed by SNAP Decagon.
+"""Decagon source agent (BE-07).
 
-The "TWOSIDES leg" of the fan-out queries the SNAP Decagon CSV (Zitnik et
-al., *Bioinformatics* 2018) — a curated extract of the canonical TWOSIDES
-2018 release. Findings carry `source="twosides"` so the locked schema
-(`backend/schemas.py:SourceName`) is preserved; underneath it's real data.
+Queries the SNAP Decagon CSV (Zitnik et al., *Bioinformatics* 2018), a
+curated polypharmacy side-effect dataset derived from TWOSIDES.
 
 Flow:
     1. Normalize each input drug via RxNorm → ingredient name.
@@ -60,7 +58,7 @@ def _to_finding(
 
 
 async def query_twosides(drug_a: str, drug_b: str) -> SourceFindings:
-    """Run the TWOSIDES/Decagon source agent for the unordered pair."""
+    """Run the Decagon source agent for the unordered pair."""
     norm_a = await normalize_drug(drug_a)
     norm_b = await normalize_drug(drug_b)
 
@@ -71,7 +69,7 @@ async def query_twosides(drug_a: str, drug_b: str) -> SourceFindings:
     cid_b = lookup_cid_for_name(name_b) or lookup_cid_for_name(drug_b)
 
     no_data = SourceFindings(
-        source="twosides",
+        source="decagon",
         drug_pair=(drug_a, drug_b),
         queried_at=datetime.now(timezone.utc),
         findings=[],
@@ -99,7 +97,7 @@ async def query_twosides(drug_a: str, drug_b: str) -> SourceFindings:
         confidence = Confidence.HIGH if any_major else Confidence.MEDIUM
 
     return SourceFindings(
-        source="twosides",
+        source="decagon",
         drug_pair=(drug_a, drug_b),
         queried_at=datetime.now(timezone.utc),
         findings=findings,

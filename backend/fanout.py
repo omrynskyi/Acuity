@@ -1,4 +1,4 @@
-"""Parallel fan-out across the three source agents (BE-11 prep).
+"""Parallel fan-out across the core source agents (BE-11 prep).
 
 Pulled out of `langgraph_app.py` so it can be unit-tested and reused by the
 synthesis tests without spinning up the whole graph.
@@ -24,7 +24,7 @@ async def fanout_pair(
     client: httpx.AsyncClient | None = None,
     event_sink: asyncio.Queue | None = None,
 ) -> list[SourceFindings]:
-    """Run all three source agents concurrently for one drug pair."""
+    """Run the core source agents concurrently for one drug pair."""
     owned = client is None
     if owned:
         client = httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=4.0))
@@ -44,7 +44,7 @@ async def fanout_pair(
         results = await asyncio.gather(
             _run_source("openfda_label", query_openfda_label(drug_a, drug_b, client=client)),
             _run_source("openfda_faers", query_faers(drug_a, drug_b, client=client)),
-            _run_source("twosides", query_twosides(drug_a, drug_b)),
+            _run_source("decagon", query_twosides(drug_a, drug_b)),
             return_exceptions=False,
         )
         return list(results)
