@@ -29,17 +29,17 @@
 
 html {
   background-color: #c8d9e6;
-  background-image: url('/hero.jpg');
+  background-image: var(--hero-bg);
   background-size: cover;
   background-position: center 20%;
 }
 
-/* Real DOM fixed element — inset:0 is more reliable than width/height on iOS Safari.
-   translateZ(0) forces GPU compositing so the layer never drops or tears during scroll. */
+/* Fixed background layer; inset:0 covers the full viewport on iOS with viewport-fit=cover.
+   translateZ(0) forces GPU compositing to prevent tearing on scroll. */
 #bg-layer {
   position: fixed;
   inset: 0;
-  background-image: url('/hero.jpg');
+  background-image: var(--hero-bg);
   background-size: cover;
   background-position: center 20%;
   z-index: -1;
