@@ -28,18 +28,19 @@
 }
 
 html {
-  background-color: var(--color-bg);
+  /* Sky color from hero.jpg — shown during overscroll if the fixed layer doesn't reach */
+  background-color: #c8d9e6;
 }
 
-/* Fixed background layer that extends 120px above the viewport top.
-   When iOS rubber-bands upward it reveals this layer — clouds, not a void. */
+/* Fixed background layer extended past all edges so overscroll in any direction
+   reveals more clouds, not a bare background color. */
 html::before {
   content: '';
   position: fixed;
-  top: -120px;
-  left: 0;
-  right: 0;
-  height: calc(100vh + 120px);
+  top: -300px;
+  left: -100px;
+  right: -100px;
+  bottom: -300px;
   background-image: url('/hero.jpg');
   background-size: cover;
   background-position: center 20%;
