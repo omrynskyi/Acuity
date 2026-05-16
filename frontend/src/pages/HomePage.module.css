@@ -1,0 +1,340 @@
+.page {
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background-size: cover;
+  background-position: center 60%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* full-page gradient overlay */
+.page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(244, 244, 241, 0.08) 0%,
+    rgba(244, 244, 241, 0.55) 40%,
+    rgba(244, 244, 241, 0.88) 70%,
+    var(--color-bg) 100%
+  );
+  pointer-events: none;
+}
+
+/* ── Logo ── */
+
+.logo {
+  position: absolute;
+  top: 20px;
+  left: 28px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-green);
+  z-index: 2;
+}
+
+/* ── Content wrapper ── */
+
+.content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 880px;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Greeting ── */
+
+.greeting {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 400;
+  color: var(--color-text);
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+
+/* ── Two-column card grid ── */
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.left,
+.right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Cards ── */
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.iconBtn {
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.15s;
+}
+
+.iconBtn:hover {
+  color: var(--color-text);
+}
+
+/* ── CTA card (full green) ── */
+
+.ctaCard {
+  background: var(--color-green);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ctaTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ctaLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.ctaLink {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ctaLinkActive {
+  color: #fff;
+}
+
+.inputRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.drugInput {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.drugInput::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.drugInput:focus {
+  border-color: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.checkBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.checkBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.checkBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Profile ── */
+
+.profileGrid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 16px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.profileGrid dt {
+  color: var(--color-text-muted);
+}
+
+.profileGrid dd {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.doctorSection {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.doctorLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-text-light);
+  margin-bottom: 3px;
+}
+
+.doctorName {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 1px;
+}
+
+.doctorEmail {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ── Reports ── */
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--color-text);
+}
+
+.reportList {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.reportList::-webkit-scrollbar {
+  display: none;
+}
+
+.reportCard {
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  min-width: 200px;
+  max-width: 240px;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.reportCard:hover {
+  box-shadow: var(--shadow-elevated);
+}
+
+.reportCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.reportDrug {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.reportDate {
+  font-size: 11px;
+  color: var(--color-text-light);
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.reportStatus {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.reportDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.reportDotDanger { background: var(--color-red); }
+.reportDotSafe   { background: var(--color-green); }
+
+.reportStatusLabel {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.reportStatusDanger { color: var(--color-red); }
+.reportStatusSafe   { color: var(--color-green); }
+
+.reportHeadline {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

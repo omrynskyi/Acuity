@@ -1,0 +1,37 @@
+.row {
+  display: flex;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--color-border);
+  gap: 8px;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-text);
+}
+
+.dose {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  min-width: 44px;
+  text-align: right;
+}
+
+.edit {
+  color: var(--color-text-light);
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.edit:hover {
+  color: var(--color-text);
+}

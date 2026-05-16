@@ -171,7 +171,7 @@ Tool that takes free-text drug name, returns normalized identifier.
 
 ---
 
-### FE-01 · Frontend scaffold + design implementation start
+### [DONE] FE-01 · Frontend scaffold + design implementation start
 **Owner:** Person B
 **Depends on:** JOINT-01
 **Time:** 1.5h

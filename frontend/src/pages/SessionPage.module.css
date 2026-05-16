@@ -1,0 +1,106 @@
+.page {
+  width: 100%;
+  padding: 32px 0 60px;
+}
+
+/* ── Loading state ── */
+
+.loadingNote {
+  font-size: 14px;
+  color: var(--color-text-light);
+  margin-top: 8px;
+}
+
+.cardsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 14px;
+  padding: 24px 80px 12px;
+}
+
+/* ── Report view ── */
+
+.dangerAlert {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.alertIcon {
+  color: var(--color-red);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dangerHeadline {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-red);
+  margin-bottom: 4px;
+}
+
+.dangerSub {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+/* ── Doctor card ── */
+
+.doctorLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.gmailIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ea4335 0%, #fbbc04 33%, #34a853 66%, #4285f4 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* ── Sections ── */
+
+.sectionHeading {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+  margin-top: 28px;
+}
+
+.interactionList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* ── Summary strip ── */
+
+.summaryStrip {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── Error ── */
+
+.errorMsg {
+  color: var(--color-red);
+  margin-top: 20px;
+  font-size: 14px;
+}

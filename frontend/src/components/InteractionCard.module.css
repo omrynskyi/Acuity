@@ -1,0 +1,122 @@
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 20px 22px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pair {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.headline {
+  font-size: 14px;
+  color: var(--color-text);
+  line-height: 1.55;
+  margin-bottom: 8px;
+}
+
+.reasoning {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.65;
+  margin-bottom: 14px;
+}
+
+/* ── Evidence / citations ── */
+
+.evidence {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.evidenceLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-text-light);
+  margin-bottom: 8px;
+}
+
+.citationList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.citation {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  background: var(--color-bg);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+}
+
+.citationSource {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-green);
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.citationQuote {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* ── Compact variant (bottom strip) ── */
+
+.compact {
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  border: 1px solid var(--color-border);
+  flex: 1;
+  min-width: 160px;
+}
+
+.compactDanger {
+  border-color: #f5c6c2;
+  background: #fffafa;
+}
+
+.compactHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.compactName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.compactLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
