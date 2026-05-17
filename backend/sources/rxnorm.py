@@ -23,6 +23,13 @@ _TIMEOUT = httpx.Timeout(8.0, connect=4.0)
 
 _FORM_SUFFIX_RE = re.compile(r"\s*\([^)]*\)")
 
+# Extended-release / pack-size tokens often appended to brand names that RxNorm
+# doesn't index. Strip these and retry when the full name returns no match.
+_ER_TOKENS_RE = re.compile(
+    r"\b(xr|er|sr|xl|cr|cd|la|ir|dr|ec|fc|28\s*day|21\s*day)\b",
+    re.IGNORECASE,
+)
+
 
 async def _lookup_rxcui(client: httpx.AsyncClient, name: str) -> Optional[str]:
     """First-pass RxCUI lookup. Returns None when nothing matches."""
@@ -88,6 +95,13 @@ async def normalize_drug(name: str, *, client: Optional[httpx.AsyncClient] = Non
     try:
         try:
             rxcui = await _lookup_rxcui(client, name_query)
+            if not rxcui:
+                # Retry after stripping ER/XR/pack-size tokens (e.g. "Mucinex XR" → "Mucinex")
+                stripped = _ER_TOKENS_RE.sub("", name_query).strip()
+                if stripped and stripped.lower() != name_query.lower():
+                    rxcui = await _lookup_rxcui(client, stripped)
+                    if rxcui:
+                        log.info("rxnorm fallback resolved %r via stripped name %r", name_clean, stripped)
         except httpx.HTTPError as e:
             log.warning("rxnorm lookup failed for %r: %s", name_clean, e)
             return NormalizedDrug(input_name=name, found=False)
