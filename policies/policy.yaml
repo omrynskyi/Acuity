@@ -102,11 +102,11 @@ network_policies:
       - { path: "/**" }
 
   # Acuity API — used by the Analyze and DB skills.
-  # TODO: replace placeholder with production Vercel host from ACUITY_API_BASE_URL.
+  # Production host served from Render (ACUITY_API_BASE_URL=https://acuity.onrender.com).
   acuity_api:
     name: acuity_api
     endpoints:
-      - host: acuity.vercel.app  # TODO fill from ACUITY_API_BASE_URL
+      - host: acuity.onrender.com
         port: 443
         protocol: rest
         enforcement: enforce
@@ -119,6 +119,18 @@ network_policies:
     name: supabase
     endpoints:
       - host: blnxyzbmwuxboruticrg.supabase.co
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
+  # ArXiv — used by the ArxivSearch skill to fetch paper metadata.
+  arxiv:
+    name: arxiv
+    endpoints:
+      - host: export.arxiv.org
         port: 443
         protocol: rest
         enforcement: enforce

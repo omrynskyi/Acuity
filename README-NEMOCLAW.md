@@ -57,6 +57,37 @@ network_policies:
 There is no explicit deny clause — anything not listed is implicitly
 denied. The OpenShell L4 engine evaluates the policy at CONNECT time.
 
+## BYO-Claw: run it yourself
+
+Two credentials are all you need.
+
+### 1. NVIDIA API key
+
+Acuity uses Nemotron for synthesis. Get a free key at
+[build.nvidia.com](https://build.nvidia.com) → sign in → **API Keys** →
+**Generate Key**. The free tier covers hundreds of inference calls, which
+is more than enough for evaluation.
+
+### 2. Acuity PAT
+
+A Personal Access Token authorises your agent to call the Acuity API
+(drug-interaction analysis, session memory). Generate one from your Acuity
+account: **My Profile → NemoClaw Token → Generate**.
+
+### Configure
+
+Create a `.env` file in the repo root (copy from `.env.example`):
+
+```bash
+NVIDIA_API_KEY=nvapi-...       # from build.nvidia.com
+ACUITY_PAT=...                 # from My Profile → NemoClaw Token
+ACUITY_API_BASE_URL=https://acuity.vercel.app   # or your self-hosted URL
+```
+
+Everything else in `.env.example` is optional or unused in this track.
+
+---
+
 ## Apply the policy
 
 ```bash

@@ -1,186 +1,174 @@
 # Acuity
 
-**Cloud track:** Brev + Nemotron multi-agent drug-interaction checker.
-**NemoClaw track:** the same agent system wrapped in OpenShell policy for
-PHI containment and API whitelist enforcement (see
-[`README-NEMOCLAW.md`](README-NEMOCLAW.md)).
+**Know your medicine. All of it, at once.**
 
-Polypharmacy patients (5+ concurrent meds) account for roughly 40% of
-adults 65+. A 10-drug regimen has 45 unique drug pairs. Physicians have
-about five seconds to review a list before discharge, and no single data
-source has complete interaction coverage. Acuity fans out across three
-heterogeneous sources in parallel, uses Nemotron to reconcile the conflicts,
-and returns a severity-ranked report with citations.
+135 million Americans take 2 or more prescription drugs every day. A third of adults 65 and older take 5 or more — and a 10-drug regimen produces 45 unique drug pairs that can interact. Physicians have roughly five seconds to review a medication list before discharge. No single data source has complete coverage.
+
+Acuity fans out across three independent data sources in parallel, uses Nemotron to reconcile conflicting findings, and returns a severity-ranked interaction report with citations — in seconds.
+
+**[Try it free at tryacuity.vercel.app](https://tryacuity.vercel.app)**
+
+---
+
+## The Problem
+
+Polypharmacy is one of the fastest-growing challenges in personal medicine. As people live longer and manage more conditions simultaneously, the combination of drugs they take grows faster than any clinician can track in real time:
+
+- **135 million** Americans take 2+ prescription drugs daily
+- **1 in 3** adults 65+ take 5+ drugs per day
+- **45 interaction pairs** exist in a 10-drug regimen
+- Drug-drug interactions are a leading cause of preventable hospitalizations
+
+The existing tools are either too shallow (simple pairwise lookups), too slow (waiting for a pharmacist consult), or too opaque (no citations, no reasoning).
+
+---
+
+## What Acuity Does
+
+Acuity is a multi-agent drug interaction checker built around a centralized API hosted on Render. Both the web app and Nemotron-powered agents query this single API — keeping analysis results, session memory, and citations in sync across every interface.
+
+**Web app** — enter a medication list, get a ranked report with severity levels and sourced reasoning. No account required.
+
+**NemoClaw agent** — the same backend, accessible to a Nemotron agent running under NemoClaw policy. Bring your own credentials, run the agent in your own sandbox, get the same results with full audit logging.
+
+---
 
 ## Architecture
 
 ```
-USER INPUT  →  medication list
-
-INTAKE                LangGraph: intake_node
-  ├── RxNorm normalisation (brand → ingredient)
-  ├── pairwise combination generation
-  └── memory check (skip pairs already evaluated)
-
-PARALLEL QUERY        LangGraph: fanout_node  →  backend.fanout.fanout_pairs
-  ├── OpenFDA Label   regulatory warnings, Nemotron nano-30b parses sections
-  ├── OpenFDA FAERS   adverse-event co-reports via /count aggregation
-  └── TWOSIDES        curated statistical signals (PRR), SQLite
-
-SYNTHESIS             LangGraph: synthesis_node  →  backend.synthesis
-  Nemotron super-120b reasons over all source findings for each pair,
-  produces severity + reasoning + citations in strict JSON. Falls back to a
-  deterministic synthesiser when no NVIDIA_API_KEY is set.
-
-REPORT                LangGraph: report_node
-  Sorted by severity, plain-language patient summary via nano-30b.
-
-MEMORY                backend.memory.SessionMemory
-  Keyed by session_id; follow-up queries only fan-out on the delta.
+                    ┌─────────────────────────────┐
+                    │   Acuity API  (Render)       │
+                    │                              │
+                    │  RxNorm normalisation        │
+                    │  ┌──────────┬──────────────┐ │
+                    │  │ OpenFDA  │ OpenFDA FAERS │ │  ← parallel fan-out
+                    │  │  Label   │              │ │
+                    │  └──────────┴──────────────┘ │
+                    │       TWOSIDES / Decagon      │
+                    │                              │
+                    │  Nemotron super-120b          │  ← synthesis
+                    │  severity-ranked report       │
+                    └──────────────┬───────────────┘
+                                   │
+               ┌───────────────────┼───────────────────┐
+               │                   │                   │
+        ┌──────▼──────┐   ┌────────▼────────┐         │
+        │  Web App    │   │ NemoClaw Agent  │         │
+        │  (Vercel)   │   │  (your sandbox) │         │
+        └─────────────┘   └─────────────────┘         │
+                                                        │
+                                             session memory synced
 ```
 
-Live demo on a 6-drug regimen runs in under 5 seconds on host with cached
-synthesis; ~50s under the NemoClaw policy when synthesis hits Nemotron live.
+The LangGraph pipeline inside the API handles intake → fan-out → synthesis → report. A follow-up query on an extended drug list only evaluates the new pairs — cached findings are reused.
 
-## Quick start
+---
+
+## NemoClaw: Medical AI That's Actually Safe
+
+Medical AI has been too risky for agentic systems — until now.
+
+A medication list is protected health information. Drug labels and FAERS adverse-event narratives are realistic surfaces for prompt injection: a malicious label could instruct the synthesis agent to exfiltrate the patient's regimen to an attacker-controlled host. Without runtime isolation, that attack succeeds silently.
+
+NemoClaw closes this at the runtime layer:
+
+- **API allowlist** — exactly four hosts are reachable from inside the sandbox: `api.fda.gov`, `rxnav.nlm.nih.gov`, `pubchem.ncbi.nlm.nih.gov`, and the Nemotron inference endpoint. Any other outbound connection is blocked at the L4 policy engine before TLS is negotiated.
+- **Filesystem containment** — agents write only to `/sandbox`, `/session`, `/tmp`. Host filesystem is read-only or invisible.
+- **Audit logging** — every allowed and denied network event is emitted in OCSF format. You can verify exactly what the agent touched.
+
+OpenShell and NemoClaw make this security posture portable: the same YAML policy file governs local dev, Brev cloud, and production — no per-host setup scripts.
+
+See [`README-NEMOCLAW.md`](README-NEMOCLAW.md) for the full bonus-track submission, policy structure, and attack-case demo.
+
+### BYO-Claw
+
+Acuity is a BYO-Claw product. To run the agent in your own NemoClaw sandbox:
+
+1. **NVIDIA API key** — get a free key at [build.nvidia.com](https://build.nvidia.com) → **API Keys → Generate Key**
+2. **Acuity PAT** — generate a Personal Access Token from **My Profile → NemoClaw Token → Generate** in the web app
+3. **Custom skills** — the repo ships skills that tell NemoClaw how to call the Acuity API endpoints, so the agent knows what it's allowed to query without you writing a policy from scratch
+
+```bash
+# .env
+NVIDIA_API_KEY=nvapi-...
+ACUITY_PAT=...
+ACUITY_API_BASE_URL=https://acuity-api.onrender.com
+```
+
+---
+
+## Data Sources
+
+| Source | Used for |
+|---|---|
+| RxNorm (`rxnav.nlm.nih.gov`) | Brand → ingredient normalisation |
+| OpenFDA Label (`api.fda.gov/drug/label.json`) | Regulatory warnings, boxed warnings |
+| OpenFDA FAERS (`api.fda.gov/drug/event.json`) | Adverse-event co-reports |
+| TWOSIDES / SNAP Decagon | 4.65M observed polypharmacy side effects across 645 drugs (Zitnik et al., *Bioinformatics* 2018) |
+| Nemotron (`integrate.api.nvidia.com`) | Source parsing + cross-source synthesis |
+
+No single source has complete coverage. Acuity surfaces `NO_DATA` honestly when a pair falls outside a source's scope rather than fabricating signal.
+
+---
+
+## Try It
+
+**Web app:** [tryacuity.vercel.app](https://tryacuity.vercel.app) — no account required.
+
+**NemoClaw agent:** see [README-NEMOCLAW.md](README-NEMOCLAW.md) for step-by-step setup.
+
+---
+
+## Developer Quick Start (self-hosted)
 
 ### Prerequisites
 - Python 3.11+
 - `uv` (recommended) or `pip`
-- `NVIDIA_API_KEY` (set in `.env`) for the synthesis Nemotron path
+- `NVIDIA_API_KEY` in `.env`
 
-### Install
+### Install and run
+
 ```bash
-uv venv --python 3.11
-source .venv/bin/activate
+uv venv --python 3.11 && source .venv/bin/activate
 uv pip install langgraph fastapi 'uvicorn[standard]' httpx pydantic python-dotenv openai pytest pytest-asyncio
 python scripts/build_decagon.py --all   # builds data/decagon.sqlite (~50s)
-python scripts/build_fixtures.py        # builds samples/fixtures.json (frontend dev only)
+
+uvicorn backend.main:app --port 8000
 ```
 
-### Run
 ```bash
-uvicorn backend.main:app --port 8000
-
-# in another shell
 curl -X POST http://localhost:8000/api/analyze \
   -H 'Content-Type: application/json' \
   -d '{"drugs":["warfarin","aspirin","fluoxetine","tramadol"],"session_id":"demo"}' \
   | jq .
 ```
 
-Follow-up queries reuse the cached findings:
-
-```bash
-curl -X POST http://localhost:8000/api/analyze \
-  -H 'Content-Type: application/json' \
-  -d '{"drugs":["warfarin","aspirin","fluoxetine","tramadol","ibuprofen"],"session_id":"demo"}' \
-  | jq '.report.new_pairs, .report.cached_pairs'
-```
-
-The follow-up evaluates only the 4 new ibuprofen pairs.
-
-### Run the synthesis prompt iteration harness (BE-09)
-
-```bash
-python scripts/iterate_synthesis.py
-```
-
-Exercises four adversarial cases: warfarin+aspirin (anchor), fluoxetine+
-tramadol (subtle serotonin syndrome), metformin+lisinopril (calibration),
-warfarin+omeprazole (sparse coverage / disagreement).
-
-## Data sources
-
-| Source | Endpoint | Auth | Used for |
-|---|---|---|---|
-| RxNorm | `rxnav.nlm.nih.gov/REST/` | none | brand → ingredient normalisation |
-| OpenFDA Label | `api.fda.gov/drug/label.json` | none (key bumps limit) | regulatory warnings, boxed warnings |
-| OpenFDA FAERS | `api.fda.gov/drug/event.json` | none | adverse-event co-reports |
-| TWOSIDES (via SNAP Decagon) | local SQLite at `data/decagon.sqlite` | none | observed polypharmacy side effects (Zitnik et al., *Bioinformatics* 2018) |
-| Nemotron | `integrate.api.nvidia.com/v1/chat/completions` | `NVIDIA_API_KEY` | source parsing + synthesis |
-
-The "TWOSIDES" leg is now backed by the **SNAP Decagon** extract (Zitnik et
-al., *Bioinformatics* 2018, [snap.stanford.edu/decagon](https://snap.stanford.edu/decagon/)):
-~4.65M observed polypharmacy side effects across 645 drugs and 1,317 UMLS-
-coded condition types. Built with `scripts/build_decagon.py` into
-`data/decagon.sqlite` (gitignored — see Quick start to rebuild). The schema
-literal `source: "twosides"` is preserved in the API since Decagon *is* a
-curated TWOSIDES extract; the data underneath is fully real.
-
-Decagon's drug coverage is a 2018 snapshot, so a handful of newer or rarer
-drugs (e.g. tramadol, lisinopril, clopidogrel, atorvastatin) aren't in its
-645-drug set — pairs involving them return `Coverage.NO_DATA` from the
-TWOSIDES leg, and synthesis falls back to the OpenFDA Label + FAERS legs
-without fabricating numbers.
-
-> **TODO(synthetic-data):** `samples/fixtures.json` is still hand-authored
-> frontend dev material, not a captured `/api/analyze` response. It MUST
-> be regenerated from a live pipeline run before any judge-facing
-> presentation. Find every occurrence with:
-> `grep -r "TODO(synthetic-data)" .`
-
-## Repo layout
+### Repo layout
 
 ```
-backend/                  FastAPI + LangGraph backend
-  schemas.py              Pydantic contract (JOINT-01, locked at H1)
-  llm.py                  Nemotron client (OpenAI-compatible)
-  fanout.py               parallel source-agent fan-out
-  synthesis.py            super-120b synthesis + deterministic fallback
-  graph.py                LangGraph pipeline definition
-  memory.py               in-process session memory (BE-12)
-  report.py               regimen-report assembly (BE-10)
-  sources/                rxnorm, openfda_label, openfda_faers, twosides (Decagon-backed), decagon_db
-  main.py                 FastAPI app
-
-prompts/synthesis.md      synthesis prompt (BE-09 target)
-policies/policy.yaml      NemoClaw locked-down policy
-policies/policy-bootstrap.yaml   bootstrap-only variant (adds PyPI)
-
-scripts/                  one-shot tools (Decagon build, fixtures, iter loop)
-samples/                  real API samples + NemoClaw audit excerpts
-data/decagon.sqlite       SNAP Decagon TWOSIDES extract (gitignored; build_decagon.py)
-docs/                     data-sources, demo-cases, access-verification notes
-tests/                    pytest schema-lock tests
-
-frontend/                 (Person B)
+backend/          FastAPI + LangGraph pipeline
+  sources/        rxnorm, openfda_label, openfda_faers, twosides
+  schemas.py      Pydantic contract (locked)
+  synthesis.py    Nemotron super-120b synthesis + deterministic fallback
+  memory.py       session memory
+frontend/         React web app (Vercel)
+policies/         NemoClaw policy YAML
+prompts/          synthesis prompt
+scripts/          Decagon build, synthesis iteration harness
+docs/             demo cases, data source notes
 ```
 
-## Demo cases
-
-See [`docs/demo-cases.md`](docs/demo-cases.md). Primary case is a 6-drug
-regimen including warfarin + aspirin (major), fluoxetine + tramadol (major,
-serotonin syndrome), and metformin + lisinopril (minor calibration check).
-
-## Known limitations + production roadmap
-
-- **TODO(synthetic-data):** `samples/fixtures.json` is still hand-authored
-  frontend dev material — regenerate from `/api/analyze` before presenting.
-  `grep -r "TODO(synthetic-data)" .` finds every remaining marker.
-- **TWOSIDES/Decagon coverage** is a 2018 snapshot of 645 drugs. Common
-  modern molecules (e.g. tramadol, lisinopril, clopidogrel, atorvastatin)
-  fall outside it; those pairs surface `Coverage.NO_DATA` honestly rather
-  than fabricating signal. Production swaps in the full live TWOSIDES
-  pipeline (or a paid alternative like DrugBank).
-- **FAERS noise** — popular drug pairs return tens of thousands of cases
-  with generic symptoms (headache, nausea) drowning out specific signals.
-  We mitigate via the `/count` aggregation + serious-event promotion; full
-  PRR computation is the production fix.
-- **Real-world deployment** would feed regimens via FHIR rather than free
-  text, retain the audit log per-session, and run the agent inside the
-  NemoClaw sandbox at the point of care.
-
-## Tests
+Primary demo case: warfarin + aspirin (major), fluoxetine + tramadol (serotonin syndrome, major), metformin + lisinopril (minor calibration). See [`docs/demo-cases.md`](docs/demo-cases.md).
 
 ```bash
 pytest tests/ -v
 ```
 
+---
+
 ## Team
 
-Backend / agents lead: Person A.
-Frontend / demo lead: Person B.
+Backend / agents: Cyrus Correll  
+Frontend / demo:  Oleg Mrynskyi
 
-This is a 24-hour hackathon prototype, not clinical software. Use for
-research and education only.
+This is a 24-hour hackathon prototype. Not clinical software — use for research and education only.

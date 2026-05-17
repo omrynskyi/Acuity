@@ -7,6 +7,13 @@ description: Generate a PDF report from a RegimenReport or DeepResearchReport JS
 
 Convert an Acuity JSON report to a formatted PDF using ReportLab.
 
+### Sandbox Runtime
+
+- This skill runs inside a NemoClaw sandbox. The active user is `sandbox`, **home is `/sandbox`** (not `/home/sandbox`, not `/root`). The skills root is `/sandbox/.openclaw/skills/`.
+- Always invoke scripts with an **absolute path**: `python3 /sandbox/.openclaw/skills/make_report/scripts/make_report.py …`. Do not search `/root/.openclaw/...` — that path does not exist here.
+- When you use the `exec` / shell tool, pass the actual command as the `command` argument. Do **not** emit raw RPC strings like `exec --host host --command "…"` — that is an internal envelope, and bash will reject `--host` as an invalid option.
+- Stderr lines like `bash: cannot create /proc/self/oom_score_adj: Permission denied` are harmless kernel notices from the sandbox's rootless container. They do not indicate script failure — ignore them and check the script's exit code instead.
+
 ### Inputs
 
 | Argument | Type | Required | Description |
@@ -30,14 +37,14 @@ Prints the path of the generated PDF to **stdout**. Exits 0 on success, non-zero
 
 ```bash
 # From a file
-python skills/make_report/scripts/make_report.py --in /tmp/report.json
+python3 /sandbox/.openclaw/skills/make_report/scripts/make_report.py --in /tmp/report.json
 
 # From stdin (pipe from analyze)
-python skills/analyze/scripts/analyze.py --drugs '["aspirin","warfarin"]' | \
-  python skills/make_report/scripts/make_report.py
+python3 /sandbox/.openclaw/skills/analyze/scripts/analyze.py --drugs '["aspirin","warfarin"]' | \
+  python3 /sandbox/.openclaw/skills/make_report/scripts/make_report.py
 
 # Explicit output path
-python skills/make_report/scripts/make_report.py --in /tmp/report.json --out /session/reports/my_report.pdf
+python3 /sandbox/.openclaw/skills/make_report/scripts/make_report.py --in /tmp/report.json --out /session/reports/my_report.pdf
 ```
 
 ### Side Effects

@@ -7,6 +7,13 @@ description: Search arXiv for peer-reviewed papers on a drug pair interaction or
 
 Search `export.arxiv.org` for peer-reviewed papers on a drug-drug interaction or any pharmacology topic. Returns paper titles, authors, abstracts, and URLs as structured JSON. Optionally synthesizes findings with Nemotron into a clinical summary.
 
+### Sandbox Runtime
+
+- This skill runs inside a NemoClaw sandbox. The active user is `sandbox`, **home is `/sandbox`** (not `/home/sandbox`, not `/root`). The skills root is `/sandbox/.openclaw/skills/`.
+- Always invoke scripts with an **absolute path**: `python3 /sandbox/.openclaw/skills/arxiv_search/scripts/arxiv_search.py …`. Do not search `/root/.openclaw/...` — that path does not exist here.
+- When you use the `exec` / shell tool, pass the actual command as the `command` argument. Do **not** emit raw RPC strings like `exec --host host --command "…"` — that is an internal envelope, and bash will reject `--host` as an invalid option.
+- Stderr lines like `bash: cannot create /proc/self/oom_score_adj: Permission denied` are harmless kernel notices from the sandbox's rootless container. They do not indicate script failure — ignore them and check the script's exit code instead.
+
 ### Prerequisites
 
 Environment variables required:
@@ -65,17 +72,17 @@ Prints an `ArxivSearchReport` JSON to **stdout** (or to `--out`). Exits 0 on suc
 
 ```bash
 # Drug pair search
-python skills/arxiv_search/scripts/arxiv_search.py --drug-a "warfarin" --drug-b "aspirin"
+python3 /sandbox/.openclaw/skills/arxiv_search/scripts/arxiv_search.py --drug-a "warfarin" --drug-b "aspirin"
 
 # Drug pair search with Nemotron synthesis
-python skills/arxiv_search/scripts/arxiv_search.py --drug-a "warfarin" --drug-b "aspirin" --synthesize
+python3 /sandbox/.openclaw/skills/arxiv_search/scripts/arxiv_search.py --drug-a "warfarin" --drug-b "aspirin" --synthesize
 
 # Free-form query, more results, write to file
-python skills/arxiv_search/scripts/arxiv_search.py --query "metformin CYP2C8 interaction" --max-results 10 --out /tmp/results.json
+python3 /sandbox/.openclaw/skills/arxiv_search/scripts/arxiv_search.py --query "metformin CYP2C8 interaction" --max-results 10 --out /tmp/results.json
 
 # Pipe into make_report for PDF
-python skills/arxiv_search/scripts/arxiv_search.py --drug-a "warfarin" --drug-b "aspirin" --synthesize \
-  | python skills/make_report/scripts/make_report.py
+python3 /sandbox/.openclaw/skills/arxiv_search/scripts/arxiv_search.py --drug-a "warfarin" --drug-b "aspirin" --synthesize \
+  | python3 /sandbox/.openclaw/skills/make_report/scripts/make_report.py
 ```
 
 ### Side Effects

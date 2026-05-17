@@ -7,6 +7,13 @@ description: Create, list, and cancel NemoClaw-isolated medication reminders tha
 
 Schedule recurring or one-time reminders that send Telegram messages. All state is kept in `/session/reminders/`. No frontend or Supabase writes.
 
+### Sandbox Runtime
+
+- This skill runs inside a NemoClaw sandbox. The active user is `sandbox`, **home is `/sandbox`** (not `/home/sandbox`, not `/root`). The skills root is `/sandbox/.openclaw/skills/`.
+- Always invoke scripts with an **absolute path**: `python3 /sandbox/.openclaw/skills/reminder/scripts/<script>.py …` (where `<script>` is `create`, `list`, or `cancel`). Do not search `/root/.openclaw/...` — that path does not exist here.
+- When you use the `exec` / shell tool, pass the actual command as the `command` argument. Do **not** emit raw RPC strings like `exec --host host --command "…"` — that is an internal envelope, and bash will reject `--host` as an invalid option.
+- Stderr lines like `bash: cannot create /proc/self/oom_score_adj: Permission denied` are harmless kernel notices from the sandbox's rootless container. They do not indicate script failure — ignore them and check the script's exit code instead.
+
 ### Prerequisites
 
 Environment variables required:
@@ -18,7 +25,7 @@ Environment variables required:
 #### create
 
 ```bash
-python skills/reminder/scripts/create.py \
+python3 /sandbox/.openclaw/skills/reminder/scripts/create.py \
   --date "2026-05-17T09:00:00" \
   --frequency once|daily|weekly|monthly \
   --content "Take your metformin"
@@ -35,7 +42,7 @@ python skills/reminder/scripts/create.py \
 #### list
 
 ```bash
-python skills/reminder/scripts/list.py
+python3 /sandbox/.openclaw/skills/reminder/scripts/list.py
 ```
 
 Prints a JSON array of all active reminders from `/session/reminders/`.
@@ -43,7 +50,7 @@ Prints a JSON array of all active reminders from `/session/reminders/`.
 #### cancel
 
 ```bash
-python skills/reminder/scripts/cancel.py --id <reminder_id>
+python3 /sandbox/.openclaw/skills/reminder/scripts/cancel.py --id <reminder_id>
 ```
 
 Removes the crontab entry and deletes `/session/reminders/<id>.json`.

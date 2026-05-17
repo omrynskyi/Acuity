@@ -65,6 +65,30 @@ network_policies:
     binaries:
       - { path: "/**" }
 
+  # Acuity API — used by the Analyze and DB skills.
+  acuity_api:
+    name: acuity_api
+    endpoints:
+      - host: acuity.onrender.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
+  # ArXiv — used by the ArxivSearch skill to fetch paper metadata.
+  arxiv:
+    name: arxiv
+    endpoints:
+      - host: export.arxiv.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }
+
   nvidia:
     name: nvidia
     endpoints:

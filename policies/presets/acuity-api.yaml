@@ -1,0 +1,19 @@
+# Acuity API egress preset for NemoClaw sandbox.
+# Allows the Analyze and DB skills to call the production Acuity backend
+# served from Render (ACUITY_API_BASE_URL=https://acuity.onrender.com).
+
+preset:
+  name: acuity-api
+  description: "Acuity backend API (acuity.onrender.com) access"
+
+network_policies:
+  acuity_api:
+    name: acuity_api
+    endpoints:
+      - host: acuity.onrender.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - { path: "/**" }

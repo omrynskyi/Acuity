@@ -7,6 +7,13 @@ description: Run a deep pharmacological research agent on a single drug using Br
 
 Run a multi-query research loop for a single drug across mechanism, indications, contraindications, adverse events, drug interactions, and pharmacokinetics. Synthesizes results with Nemotron into a structured `DeepResearchReport`.
 
+### Sandbox Runtime
+
+- This skill runs inside a NemoClaw sandbox. The active user is `sandbox`, **home is `/sandbox`** (not `/home/sandbox`, not `/root`). The skills root is `/sandbox/.openclaw/skills/`.
+- Always invoke scripts with an **absolute path**: `python3 /sandbox/.openclaw/skills/deep_research/scripts/deep_research.py …`. Do not search `/root/.openclaw/...` — that path does not exist here.
+- When you use the `exec` / shell tool, pass the actual command as the `command` argument. Do **not** emit raw RPC strings like `exec --host host --command "…"` — that is an internal envelope, and bash will reject `--host` as an invalid option.
+- Stderr lines like `bash: cannot create /proc/self/oom_score_adj: Permission denied` are harmless kernel notices from the sandbox's rootless container. They do not indicate script failure — ignore them and check the script's exit code instead.
+
 ### Prerequisites
 
 Environment variables required:
@@ -31,8 +38,8 @@ Schema: see `backend/schemas.py::DeepResearchReport`.
 ### Invocation
 
 ```bash
-python skills/deep_research/scripts/deep_research.py --drug "metformin"
-python skills/deep_research/scripts/deep_research.py --drug "rivaroxaban" --out /tmp/riv.json --depth 8
+python3 /sandbox/.openclaw/skills/deep_research/scripts/deep_research.py --drug "metformin"
+python3 /sandbox/.openclaw/skills/deep_research/scripts/deep_research.py --drug "rivaroxaban" --out /tmp/riv.json --depth 8
 ```
 
 ### Side Effects
