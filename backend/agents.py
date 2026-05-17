@@ -43,8 +43,8 @@ async def repair_drug_name(raw: str) -> str | None:
             model=NANO_MODEL,
             system=_NAME_REPAIR_SYSTEM,
             user=f'Drug name entered by user: "{raw}"',
-            max_tokens=64,
-            timeout=20.0,
+            max_tokens=1024,
+            timeout=30.0,
         )
         return (result.get("generic") or "").strip().lower() or None
     except (LLMUnavailable, Exception) as e:
@@ -97,8 +97,8 @@ async def quality_check_agent(
             model=NANO_MODEL,
             system=_QUALITY_CHECK_SYSTEM,
             user=user_msg,
-            max_tokens=256,
-            timeout=30.0,
+            max_tokens=2048,
+            timeout=45.0,
         )
         if result.get("verdict") not in ("sufficient", "needs_more"):
             result["verdict"] = "sufficient"
@@ -150,8 +150,8 @@ async def research_agent(
             model=NANO_MODEL,
             system=_RESEARCH_AGENT_SYSTEM,
             user=user_msg,
-            max_tokens=256,
-            timeout=30.0,
+            max_tokens=2048,
+            timeout=45.0,
         )
         if "tool" not in result:
             return None
