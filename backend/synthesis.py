@@ -295,7 +295,7 @@ async def synthesize_pair(
             system=_system_prompt(),
             user=_render_findings(pair, sources),
             temperature=0.1,
-            max_tokens=900,
+            max_tokens=4096,
             timeout=120.0,
         )
     except LLMUnavailable as e:

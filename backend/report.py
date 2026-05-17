@@ -90,7 +90,7 @@ async def _patient_summary(clinician_summary: str, interactions: list[Synthesize
             system=_PATIENT_SYSTEM,
             user=body,
             temperature=0.2,
-            max_tokens=300,
+            max_tokens=2048,
             timeout=60.0,
         )
         text = (raw or "").strip()

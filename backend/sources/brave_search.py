@@ -1,7 +1,7 @@
-"""Brave Search web source agent.
+"""Tavily web search source agent (replaces Brave Search).
 
-Queries the Brave Search API for drug interaction information for a given
-drug pair. Uses BRAVE_API_KEY and BRAVE_API_ENDPOINT env vars.
+Queries the Tavily Search API for drug interaction information for a given
+drug pair. Uses TAVILY_API_KEY env var.
 
 Falls back gracefully to NO_DATA if the API key is unset.
 """
@@ -26,7 +26,7 @@ from backend.schemas import (
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
+_ENDPOINT = "https://api.tavily.com/search"
 _TIMEOUT = httpx.Timeout(15.0, connect=5.0)
 _MAX_RESULTS = 8
 
@@ -45,14 +45,14 @@ def _severity_from_text(text: str) -> SeverityHint:
 
 def _parse_results(data: dict, drug_a: str, drug_b: str) -> list[Finding]:
     findings: list[Finding] = []
-    for item in data.get("web", {}).get("results", [])[:_MAX_RESULTS]:
+    for item in data.get("results", [])[:_MAX_RESULTS]:
         title = item.get("title", "")
-        description = item.get("description", "")
+        content = item.get("content", "")
         url = item.get("url", "")
 
-        combined = f"{title} {description}"
+        combined = f"{title} {content}"
         sev = _severity_from_text(combined)
-        excerpt = description[:280] if description else title[:280]
+        excerpt = content[:280] if content else title[:280]
 
         findings.append(
             Finding(
@@ -75,10 +75,10 @@ async def query_brave(
     client: Optional[httpx.AsyncClient] = None,
     query_override: Optional[str] = None,
 ) -> SourceFindings:
-    """Run a Brave web search for the drug pair interaction."""
-    api_key = os.environ.get("BRAVE_API_KEY", "")
+    """Run a Tavily web search for the drug pair interaction."""
+    api_key = os.environ.get("TAVILY_API_KEY", "")
     if not api_key:
-        log.info("BRAVE_API_KEY not set; skipping brave_search for %s/%s", drug_a, drug_b)
+        log.info("TAVILY_API_KEY not set; skipping web search for %s/%s", drug_a, drug_b)
         return SourceFindings(
             source="brave_search",
             drug_pair=(drug_a, drug_b),
@@ -88,18 +88,13 @@ async def query_brave(
             confidence=Confidence.LOW,
         )
 
-    endpoint = os.environ.get("BRAVE_API_ENDPOINT", _DEFAULT_ENDPOINT)
-    headers = {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": api_key,
-    }
     query = query_override or f"{drug_a} {drug_b} drug interaction side effects"
-    params = {
-        "q": query,
-        "count": _MAX_RESULTS,
-        "search_lang": "en",
-        "safesearch": "moderate",
+    payload = {
+        "api_key": api_key,
+        "query": query,
+        "search_depth": "basic",
+        "max_results": _MAX_RESULTS,
+        "include_answer": False,
     }
 
     owned = client is None
@@ -107,9 +102,9 @@ async def query_brave(
         client = httpx.AsyncClient(timeout=_TIMEOUT)
 
     try:
-        resp = await client.get(endpoint, headers=headers, params=params)
+        resp = await client.post(_ENDPOINT, json=payload)
     except httpx.HTTPError as e:
-        log.warning("brave search error for %s/%s: %s", drug_a, drug_b, e)
+        log.warning("tavily search error for %s/%s: %s", drug_a, drug_b, e)
         return SourceFindings(
             source="brave_search",
             drug_pair=(drug_a, drug_b),
@@ -123,7 +118,7 @@ async def query_brave(
             await client.aclose()
 
     if resp.status_code != 200:
-        log.warning("brave returned HTTP %s for %s/%s", resp.status_code, drug_a, drug_b)
+        log.warning("tavily returned HTTP %s for %s/%s", resp.status_code, drug_a, drug_b)
         return SourceFindings(
             source="brave_search",
             drug_pair=(drug_a, drug_b),

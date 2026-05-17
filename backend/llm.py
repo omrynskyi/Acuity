@@ -15,6 +15,8 @@ an offline fallback should catch `LLMUnavailable`.
 
 from __future__ import annotations
 
+import asyncio
+import contextvars
 import json
 import os
 from pathlib import Path
@@ -42,6 +44,45 @@ _load_project_env()
 DEFAULT_BASE = "https://integrate.api.nvidia.com/v1"
 SUPER_MODEL = os.environ.get("NEMOTRON_SUPER_MODEL", "nvidia/nemotron-3-super-120b-a12b")
 NANO_MODEL = os.environ.get("NEMOTRON_NANO_MODEL", "nvidia/nemotron-3-nano-30b-a3b")
+
+# ContextVar lets each SSE request register its own rate-limit notification queue.
+# asyncio.create_task copies the current context, so child tasks automatically
+# inherit whatever queue the SSE generator set before spawning the pipeline.
+rate_limit_sink: contextvars.ContextVar[asyncio.Queue | None] = contextvars.ContextVar(
+    "rate_limit_sink", default=None
+)
+
+
+class _RateLimiter:
+    """Leaky-bucket meter: spaces LLM requests evenly to stay under rpm/minute."""
+
+    def __init__(self, rpm: int) -> None:
+        self._interval = 60.0 / rpm
+        self._next_allowed: float = 0.0
+        self._lock: asyncio.Lock | None = None  # created lazily inside the event loop
+
+    def _get_lock(self) -> asyncio.Lock:
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
+
+    async def acquire(self) -> float:
+        """Reserve a slot. Returns seconds waited (0.0 if no wait needed)."""
+        async with self._get_lock():
+            now = asyncio.get_event_loop().time()
+            wait = max(0.0, self._next_allowed - now)
+            self._next_allowed = max(now, self._next_allowed) + self._interval
+
+        if wait > 0.1:
+            sink = rate_limit_sink.get()
+            if sink is not None:
+                sink.put_nowait({"waiting_seconds": round(wait, 1)})
+            await asyncio.sleep(wait)
+
+        return wait
+
+
+_limiter = _RateLimiter(int(os.environ.get("LLM_RPM", "40")))
 
 
 class LLMUnavailable(RuntimeError):
@@ -102,6 +143,8 @@ async def chat(
     }
     if response_format is not None:
         payload["response_format"] = response_format
+
+    await _limiter.acquire()
 
     owned = client is None
     if owned:

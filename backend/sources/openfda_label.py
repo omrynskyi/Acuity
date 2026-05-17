@@ -112,7 +112,7 @@ async def _llm_probe(
             model=NANO_MODEL,
             system=_NANO_SYSTEM,
             user=user,
-            max_tokens=400,
+            max_tokens=2048,
             client=client,
         )
     except LLMUnavailable:

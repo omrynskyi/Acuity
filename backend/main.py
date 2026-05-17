@@ -143,13 +143,40 @@ def _resolve_profile_id(user: dict) -> Optional[str]:
 
 
 async def _sse_generator(session_id: str, drugs: list[str], profile_id: Optional[str] = None, *, target_drug: Optional[str] = None):
+    from backend.llm import rate_limit_sink
+
+    rl_queue: asyncio.Queue = asyncio.Queue()
+    # Set BEFORE create_task so child tasks inherit this value via context copy.
+    rate_limit_sink.set(rl_queue)
+
+    combined: asyncio.Queue = asyncio.Queue()
+
+    async def _pump_pipeline() -> None:
+        try:
+            async for ev_type, payload in run_analysis_streaming(session_id, drugs, target_drug=target_drug):
+                await combined.put((ev_type, payload))
+        except Exception as e:
+            logging.exception("SSE pipeline crashed")
+            await combined.put(("error", {"detail": str(e), "stage": "unknown"}))
+        finally:
+            await combined.put(("_done", {}))
+
+    async def _pump_rl() -> None:
+        while True:
+            item = await rl_queue.get()
+            await combined.put(("rate_limit", item))
+
+    pipeline_task = asyncio.create_task(_pump_pipeline())
+    rl_task = asyncio.create_task(_pump_rl())
+
     try:
-        async for event_type, payload in run_analysis_streaming(session_id, drugs, target_drug=target_drug):
+        while True:
+            ev_type, payload = await combined.get()
+            if ev_type == "_done":
+                break
             data_line = json.dumps(payload, default=str)
-            yield f"event: {event_type}\ndata: {data_line}\n\n"
-            if event_type == "report_done":
-                # Persist the completed report to Supabase so the home screen's
-                # "My Reports" list is populated when using the streaming path.
+            yield f"event: {ev_type}\ndata: {data_line}\n\n"
+            if ev_type == "report_done":
                 report_dict = json.loads(json.dumps(payload.get("report", {}), default=str))
                 new_drug = drugs[-1] if drugs else ""
                 asyncio.create_task(store_session(session_id, new_drug, drugs, report_dict, profile_id))
@@ -157,6 +184,9 @@ async def _sse_generator(session_id: str, drugs: list[str], profile_id: Optional
         logging.exception("SSE generator crashed")
         err = json.dumps({"detail": str(e), "stage": "unknown"}, default=str)
         yield f"event: error\ndata: {err}\n\n"
+    finally:
+        rl_task.cancel()
+        pipeline_task.cancel()
 
 
 class AnalyzeDrugRequest(BaseModel):

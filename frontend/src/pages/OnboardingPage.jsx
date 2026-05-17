@@ -22,6 +22,7 @@ export default function OnboardingPage() {
   const reducedMotion = useReducedMotion();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
 
   // Step 1 — doctor info
   const [doctor, setDoctor] = useState('');
@@ -124,8 +125,13 @@ export default function OnboardingPage() {
     try {
       await streamAnalyzeOnboarding(undefined, {
         onEvent({ type, data }) {
-          if (type === 'report_done') {
+          if (type === 'rate_limit') {
+            setRateLimited(true);
+          } else if (type === 'report_done') {
+            setRateLimited(false);
             navigate(`/session/${data.session_id}`);
+          } else {
+            setRateLimited(false);
           }
         },
         onError(err) {
@@ -287,6 +293,19 @@ export default function OnboardingPage() {
               <p className={styles.loadingCopy}>
                 Analyzing all interactions in your regimen. This takes a few seconds.
               </p>
+              <AnimatePresence>
+                {rateLimited && (
+                  <motion.p
+                    className={styles.rateLimitNote}
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    This service is maintained for free — rate limits keep the AI model accessible to everyone. Hang tight while we wait for the next available slot.
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>

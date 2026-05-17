@@ -59,6 +59,7 @@ export default function SessionPage() {
   const [addedToList, setAddedToList] = useState(false);
   const [addingToList, setAddingToList] = useState(false);
   const [showAddWarning, setShowAddWarning] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
 
   const [displayNewDrug, setDisplayNewDrug] = useState(null);
   const [displayRegimen, setDisplayRegimen] = useState(null);
@@ -131,10 +132,14 @@ export default function SessionPage() {
         } else if (type === 'source_result') {
           setSourceUpdates((prev) => [...prev, data]);
           setStreamPhase('fanout');
+        } else if (type === 'rate_limit') {
+          setRateLimited(true);
         } else if (type === 'synthesis_result') {
+          setRateLimited(false);
           const key = data.drug_pair.join('|');
           setSynthesizedPairs((prev) => new Map(prev).set(key, data));
         } else if (type === 'report_done') {
+          setRateLimited(false);
           setReport(data.report);
           navigate(`/session/${data.session_id}`, { replace: true });
           setTimeout(() => setPhase('done'), 300);
@@ -241,6 +246,19 @@ export default function SessionPage() {
               <p className="text-section-label">We are researching the possible drug interactions for:</p>
               <h1 className="text-title mt-4">{capitalize(activeNewDrug)}</h1>
               <p className={`${styles.loadingNote} mt-8`}>{PHASE_LABELS[streamPhase]}</p>
+              <AnimatePresence>
+                {rateLimited && (
+                  <motion.p
+                    className={styles.rateLimitNote}
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    This service is maintained for free — rate limits keep the AI model accessible to everyone. Hang tight while we wait for the next available slot.
+                  </motion.p>
+                )}
+              </AnimatePresence>
 
               <div className={styles.cardsRow}>
                 {activeRegimen.map((drug) => {
