@@ -76,7 +76,9 @@ export default function HomePage() {
   useEffect(() => {
     loadData();
     // Re-fetch when auth state settles (covers the case where session propagates after mount)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => loadData());
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') loadData();
+    });
     return () => subscription.unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
