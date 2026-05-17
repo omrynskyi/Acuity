@@ -1,9 +1,10 @@
 """Acuity FastAPI application.
 
-`/health`            — liveness probe.
-`/api/analyze`       — run the LangGraph pipeline on a regimen.
-`/api/policy`        — return the NemoClaw policy YAML (BE-15).
-`/api/audit-log`     — return recent OpenShell audit-log lines (BE-15).
+`/health`                       — liveness probe.
+`/api/analyze/drug/stream`      — SSE: check one new drug against the saved regimen.
+`/api/analyze/onboarding/stream`— SSE: check all pairs in the saved regimen (post-onboarding).
+`/api/policy`                   — return the NemoClaw policy YAML (BE-15).
+`/api/audit-log`                — return recent OpenShell audit-log lines (BE-15).
 """
 
 from __future__ import annotations
@@ -83,15 +84,6 @@ app.include_router(user_router, prefix="/api/user", tags=["user"])
 # Request / response models for the public API
 # --------------------------------------------------------------------------- #
 
-class AnalyzeRequest(BaseModel):
-    drugs: list[str] = Field(..., min_length=1, max_length=20)
-    session_id: Optional[str] = Field(
-        None,
-        description="Opaque session id; reuse it on follow-up queries to get memory deltas.",
-    )
-    profile_id: Optional[str] = Field(None, description="Supabase profile id for the requesting user.")
-
-
 class AnalyzeResponse(BaseModel):
     session_id: str
     report: RegimenReport
@@ -138,27 +130,6 @@ async def generate_token(user: dict = Depends(get_current_user)) -> dict:
     return {"token": token}
 
 
-@app.post("/api/analyze", response_model=AnalyzeResponse)
-async def analyze(req: AnalyzeRequest, user: dict = Depends(get_current_user)) -> AnalyzeResponse:
-    session_id = req.session_id or str(uuid.uuid4())
-    try:
-        state = await run_analysis(session_id, req.drugs)
-    except Exception as e:  # noqa: BLE001
-        logging.exception("analysis pipeline failed")
-        raise HTTPException(status_code=500, detail=f"pipeline failure: {e}")
-    report = state["report"]
-    new_drug = req.drugs[-1] if req.drugs else ""
-    profile_id = req.profile_id or _resolve_profile_id(user)
-    asyncio.create_task(
-        store_session(session_id, new_drug, req.drugs, report.model_dump(mode="json"), profile_id)
-    )
-    return AnalyzeResponse(
-        session_id=session_id,
-        report=report,
-        durations_ms=state["durations_ms"],
-    )
-
-
 def _resolve_profile_id(user: dict) -> Optional[str]:
     """Return profile_id — already set for API-key callers, looked up for JWT callers."""
     if user.get("profile_id"):
@@ -187,25 +158,6 @@ async def _sse_generator(session_id: str, drugs: list[str], profile_id: Optional
         err = json.dumps({"detail": str(e), "stage": "unknown"}, default=str)
         yield f"event: error\ndata: {err}\n\n"
 
-
-@app.post("/api/analyze/stream")
-async def analyze_stream(req: AnalyzeRequest, user: dict = Depends(get_current_user)) -> StreamingResponse:
-    session_id = req.session_id or str(uuid.uuid4())
-    profile_id = req.profile_id or _resolve_profile_id(user)
-    return StreamingResponse(
-        _sse_generator(session_id, req.drugs, profile_id),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Nginx-Buffering": "no",
-            "Connection": "keep-alive",
-        },
-    )
-
-
-# --------------------------------------------------------------------------- #
-# Profile-aware analyze endpoints
-# --------------------------------------------------------------------------- #
 
 class AnalyzeDrugRequest(BaseModel):
     drug: str = Field(..., description="New drug to check against the user's saved regimen.")
@@ -257,24 +209,6 @@ async def analyze_drug_stream(req: AnalyzeDrugRequest, user: dict = Depends(get_
 
 class OnboardingAnalyzeRequest(BaseModel):
     session_id: Optional[str] = Field(None, description="Reuse for memory continuity.")
-
-
-@app.post("/api/analyze/onboarding", response_model=AnalyzeResponse)
-async def analyze_onboarding(req: OnboardingAnalyzeRequest, user: dict = Depends(get_current_user)) -> AnalyzeResponse:
-    """Analyze every drug pair in the user's saved regimen — used during onboarding."""
-    profile_id, drug_list = await _get_profile_regimen(user)
-    if len(drug_list) < 2:
-        raise HTTPException(status_code=422, detail="Regimen needs at least 2 drugs to analyze pairs")
-    session_id = req.session_id or str(uuid.uuid4())
-    try:
-        state = await run_analysis(session_id, drug_list)
-    except Exception as e:
-        logging.exception("analyze/onboarding pipeline failed")
-        raise HTTPException(status_code=500, detail=f"pipeline failure: {e}")
-    report = state["report"]
-    new_drug = drug_list[-1] if drug_list else ""
-    asyncio.create_task(store_session(session_id, new_drug, drug_list, report.model_dump(mode="json"), profile_id))
-    return AnalyzeResponse(session_id=session_id, report=report, durations_ms=state["durations_ms"])
 
 
 @app.post("/api/analyze/onboarding/stream")

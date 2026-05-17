@@ -9,35 +9,33 @@ async function authHeaders() {
     : {};
 }
 
-export async function analyzeRegimen(drugs, sessionId, profileId) {
-  const res = await fetch(`${BASE}/api/analyze`, {
+export async function streamAnalyzeDrug(drug, sessionId, { onEvent, onError } = {}) {
+  const res = await fetch(`${BASE}/api/analyze/drug/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-    body: JSON.stringify({
-      drugs,
-      session_id: sessionId ?? undefined,
-      profile_id: profileId ?? undefined,
-    }),
-  });
-  if (!res.ok) throw new Error(`API error ${res.status}`);
-  return res.json();
-}
-
-export function getSourceFindings() {
-  return [];
-}
-
-export async function streamAnalyzeRegimen(drugs, sessionId, { onEvent, onError } = {}) {
-  const res = await fetch(`${BASE}/api/analyze/stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-    body: JSON.stringify({ drugs, session_id: sessionId ?? undefined }),
+    body: JSON.stringify({ drug, session_id: sessionId ?? undefined }),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
   }
+  return _consumeSseStream(res, { onEvent, onError });
+}
 
+export async function streamAnalyzeOnboarding(sessionId, { onEvent, onError } = {}) {
+  const res = await fetch(`${BASE}/api/analyze/onboarding/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+    body: JSON.stringify({ session_id: sessionId ?? undefined }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return _consumeSseStream(res, { onEvent, onError });
+}
+
+async function _consumeSseStream(res, { onEvent, onError } = {}) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';

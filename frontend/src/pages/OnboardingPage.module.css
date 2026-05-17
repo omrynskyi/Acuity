@@ -1,10 +1,25 @@
 .page {
-  min-height: 100vh;
+  min-height: var(--app-min-height);
   padding: max(40px, env(safe-area-inset-top)) 24px max(40px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+.content {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stepContent {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .card {
@@ -48,6 +63,12 @@
   text-align: center;
   margin-bottom: 32px;
   line-height: 1.2;
+}
+
+.loadingCopy {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  text-align: center;
 }
 
 /* Matches AuthPage card inputs exactly */

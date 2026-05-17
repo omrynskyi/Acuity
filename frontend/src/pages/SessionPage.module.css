@@ -319,7 +319,6 @@ button.groupDivider:hover .groupTitle {
   justify-content: center;
   z-index: 200;
   padding: 24px;
-  backdrop-filter: blur(2px);
 }
 
 .warningModal {

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
+import { getItemPresence, getSwapPresence, LAYOUT_TRANSITION } from '../lib/motion.js';
 import { supabase } from '../lib/supabase.js';
 import { updateProfileDoctor, addDrugToRegimen } from '../lib/db.js';
 import { capitalize } from '../lib/utils.js';
@@ -17,6 +19,7 @@ async function fetchSuggestions(term) {
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
+  const reducedMotion = useReducedMotion();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -135,121 +138,159 @@ export default function OnboardingPage() {
       navigate('/');
     }
   }
-
-  if (step === 3) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.logo}>Acuity</div>
-        <h1 className={styles.headline}>Checking your medications…</h1>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: 14, textAlign: 'center' }}>
-          Analyzing all interactions in your regimen. This takes a few seconds.
-        </p>
-      </div>
-    );
-  }
+  const swapPresence = getSwapPresence(reducedMotion, 8);
+  const itemPresence = getItemPresence(reducedMotion, 8, 0.99);
 
   return (
     <div className={styles.page}>
-      <div className={styles.logo}>Acuity</div>
+      <div className={styles.content}>
+        <div className={styles.logo}>Acuity</div>
 
-      {step === 1 && (
-        <>
-          <h1 className={styles.headline}>Tell us about your doctor</h1>
-          <form className={styles.card} onSubmit={handleDoctorContinue}>
-            <div className={styles.field}>
-              <label className={styles.label}>Doctor&apos;s name</label>
-              <input
-                className={styles.input}
-                placeholder="Dr. Smith"
-                value={doctor}
-                onChange={e => setDoctor(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div className={styles.field}>
-              <label className={styles.label}>Doctor&apos;s email</label>
-              <input
-                className={styles.input}
-                placeholder="doctor@clinic.com"
-                type="email"
-                value={doctorEmail}
-                onChange={e => setDoctorEmail(e.target.value)}
-              />
-            </div>
-            <button type="submit" className={styles.doneBtn} disabled={loading}>
-              {loading ? 'Saving…' : 'Continue'}
-            </button>
-            <button type="button" className={styles.skipBtn} onClick={() => setStep(2)}>
-              Skip for now
-            </button>
-          </form>
-        </>
-      )}
+        <AnimatePresence mode="wait">
+          {step === 1 && (
+            <motion.div
+              key="doctor-step"
+              className={styles.stepContent}
+              initial={swapPresence.initial}
+              animate={swapPresence.animate}
+              exit={swapPresence.exit}
+            >
+              <h1 className={styles.headline}>Tell us about your doctor</h1>
+              <motion.form className={styles.card} onSubmit={handleDoctorContinue} layout transition={LAYOUT_TRANSITION}>
+                <div className={styles.field}>
+                  <label className={styles.label}>Doctor&apos;s name</label>
+                  <input
+                    className={styles.input}
+                    placeholder="Dr. Smith"
+                    value={doctor}
+                    onChange={e => setDoctor(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>Doctor&apos;s email</label>
+                  <input
+                    className={styles.input}
+                    placeholder="doctor@clinic.com"
+                    type="email"
+                    value={doctorEmail}
+                    onChange={e => setDoctorEmail(e.target.value)}
+                  />
+                </div>
+                <button type="submit" className={styles.doneBtn} disabled={loading}>
+                  {loading ? 'Saving…' : 'Continue'}
+                </button>
+                <button type="button" className={styles.skipBtn} onClick={() => setStep(2)}>
+                  Skip for now
+                </button>
+              </motion.form>
+            </motion.div>
+          )}
 
-      {step === 2 && (
-        <>
-          <h1 className={styles.headline}>Let&apos;s add your current medications</h1>
+          {step === 2 && (
+            <motion.div
+              key="medications-step"
+              className={styles.stepContent}
+              initial={swapPresence.initial}
+              animate={swapPresence.animate}
+              exit={swapPresence.exit}
+            >
+              <h1 className={styles.headline}>Let&apos;s add your current medications</h1>
 
-          <div className={styles.medCard}>
-            {/* Search with autocomplete */}
-            <div className={styles.searchWrap} ref={suggestRef}>
-              <input
-                className={styles.searchInput}
-                placeholder="Start Typing"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                autoFocus
-                autoComplete="off"
-              />
-              {suggestions.length > 0 && (
-                <ul className={styles.suggestionList}>
-                  {suggestions.slice(0, 6).map(name => (
-                    <li
-                      key={name}
-                      className={styles.suggestionItem}
-                      onMouseDown={() => addDrug(name)}
+              <motion.div className={styles.medCard} layout transition={LAYOUT_TRANSITION}>
+                <div className={styles.searchWrap} ref={suggestRef}>
+                  <input
+                    className={styles.searchInput}
+                    placeholder="Start Typing"
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    autoFocus
+                    autoComplete="off"
+                  />
+                  {suggestions.length > 0 && (
+                    <ul className={styles.suggestionList}>
+                      {suggestions.slice(0, 6).map(name => (
+                        <li
+                          key={name}
+                          className={styles.suggestionItem}
+                          onMouseDown={() => addDrug(name)}
+                        >
+                          {name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <AnimatePresence>
+                  {drugs.length > 0 && (
+                    <motion.div
+                      key="drug-list"
+                      className={styles.listWrap}
+                      layout
+                      transition={LAYOUT_TRANSITION}
+                      initial={swapPresence.initial}
+                      animate={swapPresence.animate}
+                      exit={swapPresence.exit}
                     >
-                      {name}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+                      <p className={styles.listLabel}>You Added</p>
+                      <AnimatePresence>
+                        {drugs.map((drug, i) => (
+                          <motion.div
+                            key={drug.name.toLowerCase()}
+                            className={styles.drugRow}
+                            layout
+                            transition={LAYOUT_TRANSITION}
+                            initial={itemPresence.initial}
+                            animate={itemPresence.animate}
+                            exit={itemPresence.exit}
+                          >
+                            <span className={styles.drugName}>{capitalize(drug.name)}</span>
+                            <input
+                              className={styles.doseInput}
+                              placeholder="Dose"
+                              value={drug.dose}
+                              onChange={e => updateDose(i, e.target.value)}
+                            />
+                            <button className={styles.removeBtn} type="button" onClick={() => removeDrug(i)} aria-label="Remove">
+                              <Trash2 size={15} />
+                            </button>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
 
-            {/* Added drugs */}
-            {drugs.length > 0 && (
-              <div className={styles.listWrap}>
-                <p className={styles.listLabel}>You Added</p>
-                {drugs.map((drug, i) => (
-                  <div key={i} className={styles.drugRow}>
-                    <span className={styles.drugName}>{capitalize(drug.name)}</span>
-                    <input
-                      className={styles.doseInput}
-                      placeholder="Dose"
-                      value={drug.dose}
-                      onChange={e => updateDose(i, e.target.value)}
-                    />
-                    <button className={styles.removeBtn} type="button" onClick={() => removeDrug(i)} aria-label="Remove">
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                ))}
+              <div className={styles.actions}>
+                <button className={styles.doneBtn} onClick={handleDone} disabled={loading}>
+                  {loading ? 'Saving…' : 'Continue to Dashboard'}
+                </button>
+                <button className={styles.skipBtn} type="button" onClick={() => navigate('/')}>
+                  Skip for now
+                </button>
               </div>
-            )}
-          </div>
+            </motion.div>
+          )}
 
-          <div className={styles.actions}>
-            <button className={styles.doneBtn} onClick={handleDone} disabled={loading}>
-              {loading ? 'Saving…' : 'Continue to Dashboard'}
-            </button>
-            <button className={styles.skipBtn} type="button" onClick={() => navigate('/')}>
-              Skip for now
-            </button>
-          </div>
-        </>
-      )}
+          {step === 3 && (
+            <motion.div
+              key="analysis-step"
+              className={styles.stepContent}
+              initial={swapPresence.initial}
+              animate={swapPresence.animate}
+              exit={swapPresence.exit}
+            >
+              <h1 className={styles.headline}>Checking your medications…</h1>
+              <p className={styles.loadingCopy}>
+                Analyzing all interactions in your regimen. This takes a few seconds.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
-

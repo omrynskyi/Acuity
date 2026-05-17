@@ -25,6 +25,7 @@ from backend.fanout import fanout_pairs
 from backend.memory import memory_for, pair_cache_key
 from backend.report import build_report
 from backend.schemas import (
+    Coverage,
     NormalizedDrug,
     RegimenReport,
     SourceFindings,
@@ -67,7 +68,17 @@ async def intake_node(state: AcuityState) -> AcuityState:
 
     # Build pairs over recognised drugs only; unknown ones are surfaced in
     # the regimen list but excluded from interaction checks.
-    keys = [d.generic_name or d.input_name.lower() for d in normalized if d.found]
+    # Deduplicate by rxcui so that e.g. "Cocaine" and "Cocaine (nasal)" — same
+    # ingredient, different form — don't produce a self-pair.
+    seen: dict[str, str] = {}  # rxcui-or-name → canonical key
+    for d in normalized:
+        if not d.found:
+            continue
+        dedup_key = d.rxcui or (d.generic_name or d.input_name.lower())
+        name_key = d.generic_name or d.input_name.lower()
+        if dedup_key not in seen:
+            seen[dedup_key] = name_key
+    keys = list(seen.values())
     all_pairs = list(combinations(sorted(set(keys)), 2))
 
     # If a target_drug is specified (e.g. adding one new drug to a regimen),
@@ -220,8 +231,57 @@ async def arxiv_node(state: AcuityState) -> AcuityState:
     return {**state, "source_findings": findings, "durations_ms": durations}
 
 
+_MIN_PAIR_FINDINGS = 3  # run extra Brave search when a pair has fewer total findings
+
+
+async def _augment_sparse_pairs(
+    pairs: list[tuple[str, str]],
+    findings: dict[tuple[str, str], list[SourceFindings]],
+) -> dict[tuple[str, str], list[SourceFindings]]:
+    """For pairs with few findings across all sources, run an extra Brave search."""
+    sparse = [
+        p for p in pairs
+        if sum(len(sf.findings) for sf in findings.get(p, [])) < _MIN_PAIR_FINDINGS
+    ]
+    if not sparse:
+        return findings
+
+    log.info("Running extra Brave search for %d sparse pair(s)", len(sparse))
+    extra_results = await asyncio.gather(
+        *(
+            query_brave(
+                p[0], p[1],
+                query_override=f"{p[0]} {p[1]} clinical pharmacology mechanism adverse reaction",
+            )
+            for p in sparse
+        ),
+        return_exceptions=True,
+    )
+    findings = dict(findings)
+    for pair, extra in zip(sparse, extra_results):
+        if not isinstance(extra, SourceFindings) or not extra.findings:
+            continue
+        sf_list = list(findings.get(pair, []))
+        brave_idx = next((i for i, sf in enumerate(sf_list) if sf.source == "brave_search"), None)
+        if brave_idx is not None:
+            orig = sf_list[brave_idx]
+            merged_findings = orig.findings + extra.findings
+            sf_list[brave_idx] = SourceFindings(
+                source=orig.source,
+                drug_pair=orig.drug_pair,
+                queried_at=orig.queried_at,
+                findings=merged_findings,
+                coverage=Coverage.FULL,
+                confidence=orig.confidence,
+            )
+        else:
+            sf_list.append(extra)
+        findings[pair] = sf_list
+    return findings
+
+
 async def brave_search_node(state: AcuityState) -> AcuityState:
-    """Run a Brave web search for each new drug pair."""
+    """Run a Brave web search for each new drug pair; augment sparse pairs."""
     t0 = datetime.now(timezone.utc)
     new_pairs = state["new_pairs"]
     findings: dict[tuple[str, str], list[SourceFindings]] = dict(state.get("source_findings") or {})
@@ -235,6 +295,7 @@ async def brave_search_node(state: AcuityState) -> AcuityState:
                 findings.setdefault(pair, []).append(result)
             else:
                 log.warning("brave search error for %s: %s", pair, result)
+        findings = await _augment_sparse_pairs(new_pairs, findings)
     durations = state["durations_ms"]
     durations["brave_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
     return {**state, "source_findings": findings, "durations_ms": durations}
@@ -252,6 +313,7 @@ async def report_node(state: AcuityState) -> AcuityState:
         pair_results=state["syntheses"],
         new_pairs=state["new_pairs"],
         cached_pairs=state["cached_pairs"],
+        source_findings=state.get("source_findings"),
     )
     durations = state["durations_ms"]
     durations["report_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)

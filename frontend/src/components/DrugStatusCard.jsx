@@ -1,5 +1,6 @@
 import { CheckCircle, Loader2, ExternalLink } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { getItemPresence } from '../lib/motion.js';
 import { SOURCE_META } from '../lib/constants.js';
 import { capitalize } from '../lib/utils.js';
 import styles from './DrugStatusCard.module.css';
@@ -8,8 +9,10 @@ import styles from './DrugStatusCard.module.css';
 const VISIBLE_COUNT = 3;
 
 export default function DrugStatusCard({ drugName, status, sources = [], snippet }) {
+  const reducedMotion = useReducedMotion();
   const isDone = status === 'done';
   const visibleSources = sources.slice(-VISIBLE_COUNT);
+  const itemPresence = getItemPresence(reducedMotion, 8, 0.99);
 
   return (
     <div className={`${styles.card} ${isDone ? styles.done : ''}`}>
@@ -29,17 +32,16 @@ export default function DrugStatusCard({ drugName, status, sources = [], snippet
         {isDone && snippet && (
           <p className={styles.snippet}>{snippet}</p>
         )}
-        <AnimatePresence initial={false}>
+        <AnimatePresence>
           {!isDone && visibleSources.map((u) => {
             const meta = SOURCE_META[u.source] ?? { label: u.source, url: '#', domain: null };
             return (
               <motion.div
                 key={`${u.source}-${u.pair.join('-')}`}
                 className={styles.sourceEntry}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.22, ease: 'easeOut' }}
+                initial={itemPresence.initial}
+                animate={itemPresence.animate}
+                exit={itemPresence.exit}
               >
                 {meta.domain && (
                   <img

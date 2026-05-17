@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 
 _DEFAULT_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
 _TIMEOUT = httpx.Timeout(15.0, connect=5.0)
-_MAX_RESULTS = 5
+_MAX_RESULTS = 8
 
 _MAJOR_TERMS = ("fatal", "contraindicated", "severe", "life-threatening", "death", "do not use")
 _MODERATE_TERMS = ("avoid", "caution", "significant", "increased risk", "monitor", "warfarin")
@@ -73,6 +73,7 @@ async def query_brave(
     drug_b: str,
     *,
     client: Optional[httpx.AsyncClient] = None,
+    query_override: Optional[str] = None,
 ) -> SourceFindings:
     """Run a Brave web search for the drug pair interaction."""
     api_key = os.environ.get("BRAVE_API_KEY", "")
@@ -93,8 +94,9 @@ async def query_brave(
         "Accept-Encoding": "gzip",
         "X-Subscription-Token": api_key,
     }
+    query = query_override or f"{drug_a} {drug_b} drug interaction side effects"
     params = {
-        "q": f"{drug_a} {drug_b} drug interaction side effects",
+        "q": query,
         "count": _MAX_RESULTS,
         "search_lang": "en",
         "safesearch": "moderate",

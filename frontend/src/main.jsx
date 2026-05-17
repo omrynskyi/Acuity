@@ -7,8 +7,8 @@ import './styles/design.css';
 import heroImg from '../hero.jpg';
 
 // Vite gives heroImg a hashed URL (e.g. /assets/hero-HASH.jpg).
-// Set as CSS custom property before React renders so both the html canvas
-// background and #bg-layer pick it up without a flash.
+// Set as CSS custom property before React renders so #bg-layer
+// picks it up without a flash.
 document.documentElement.style.setProperty('--hero-bg', `url(${heroImg})`);
 
 ReactDOM.createRoot(document.getElementById('root')).render(

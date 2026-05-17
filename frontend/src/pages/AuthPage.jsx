@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import CustomSelect from '../components/CustomSelect.jsx';
+import { getSwapPresence, LAYOUT_TRANSITION } from '../lib/motion.js';
 import { supabase } from '../lib/supabase.js';
 import styles from './AuthPage.module.css';
 
@@ -34,6 +36,7 @@ const GOOGLE_LOGO = (
 
 export default function AuthPage() {
   const navigate = useNavigate();
+  const reducedMotion = useReducedMotion();
   const [mode, setMode] = useState('signup'); // 'signup' | 'signin'
   const [step, setStep] = useState(1); // signup steps 1 or 2
   const [loading, setLoading] = useState(false);
@@ -106,146 +109,169 @@ export default function AuthPage() {
     });
   }
 
+  const swapPresence = getSwapPresence(reducedMotion, 8);
+
   return (
     <div className={styles.page}>
-      <div className={styles.logo}>Acuity</div>
-      <h1 className={styles.headline}>
-        Start knowing your <strong>medicine</strong>
-      </h1>
+      <div className={styles.content}>
+        <div className={styles.logo}>Acuity</div>
+        <h1 className={styles.headline}>
+          Start knowing your <strong>medicine</strong>
+        </h1>
 
+        <motion.div className={styles.card} layout transition={LAYOUT_TRANSITION}>
+          <AnimatePresence mode="wait">
+            {mode === 'signup' && step === 1 && (
+              <motion.form
+                key="signup-step-1"
+                onSubmit={handleContinue}
+                initial={swapPresence.initial}
+                animate={swapPresence.animate}
+                exit={swapPresence.exit}
+              >
+                <p className={styles.cardTitle}>First we need some info</p>
 
-      <div className={styles.card}>
-        {mode === 'signup' && step === 1 && (
-          <form onSubmit={handleContinue}>
-            <p className={styles.cardTitle}>First we need some info</p>
-
-            <div className={styles.field}>
-              <label className={styles.label}>What&apos;s your name?</label>
-              <input className={styles.input} placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label}>How old are you?</label>
-              <input className={styles.input} placeholder="Age" type="number" value={age} onChange={e => setAge(e.target.value)} />
-            </div>
-
-            <div className={styles.row}>
-              <div className={styles.field}>
-                <label className={styles.label}>What&apos;s your gender?</label>
-                <CustomSelect
-                  value={sex}
-                  onChange={setSex}
-                  options={GENDER_OPTIONS}
-                  placeholder="Select"
-                />
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>How tall are you?</label>
-                <div className={styles.heightWrap}>
-                  <input
-                    className={styles.heightInput}
-                    placeholder="0"
-                    type="number"
-                    min="0"
-                    value={heightFt}
-                    onChange={e => setHeightFt(e.target.value)}
-                  />
-                  <span className={styles.heightUnit}>ft</span>
-                  <input
-                    className={styles.heightInput}
-                    placeholder="0"
-                    type="number"
-                    min="0"
-                    max="11"
-                    value={heightIn}
-                    onChange={e => setHeightIn(e.target.value)}
-                  />
-                  <span className={styles.heightUnit}>in</span>
+                <div className={styles.field}>
+                  <label className={styles.label}>What&apos;s your name?</label>
+                  <input className={styles.input} placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
                 </div>
-              </div>
-            </div>
 
-            <div className={styles.field}>
-              <label className={styles.label}>What&apos;s your weight?</label>
-              <div className={styles.suffixWrap}>
-                <input
-                  className={styles.suffixInput}
-                  placeholder="0"
-                  type="number"
-                  min="0"
-                  value={weight}
-                  onChange={e => setWeight(e.target.value)}
-                />
-                <span className={styles.suffix}>lb</span>
-              </div>
-            </div>
+                <div className={styles.field}>
+                  <label className={styles.label}>How old are you?</label>
+                  <input className={styles.input} placeholder="Age" type="number" value={age} onChange={e => setAge(e.target.value)} />
+                </div>
 
-            {error && <p className={styles.error}>{error}</p>}
-            <button type="submit" className={styles.primaryBtn}>Continue</button>
+                <div className={styles.row}>
+                  <div className={styles.field}>
+                    <label className={styles.label}>What&apos;s your gender?</label>
+                    <CustomSelect
+                      value={sex}
+                      onChange={setSex}
+                      options={GENDER_OPTIONS}
+                      placeholder="Select"
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.label}>How tall are you?</label>
+                    <div className={styles.heightWrap}>
+                      <input
+                        className={styles.heightInput}
+                        placeholder="0"
+                        type="number"
+                        min="0"
+                        value={heightFt}
+                        onChange={e => setHeightFt(e.target.value)}
+                      />
+                      <span className={styles.heightUnit}>ft</span>
+                      <input
+                        className={styles.heightInput}
+                        placeholder="0"
+                        type="number"
+                        min="0"
+                        max="11"
+                        value={heightIn}
+                        onChange={e => setHeightIn(e.target.value)}
+                      />
+                      <span className={styles.heightUnit}>in</span>
+                    </div>
+                  </div>
+                </div>
 
-            <p className={styles.divider}>
-              Already have an account?
-              <button type="button" className={styles.switchLink} onClick={() => switchMode('signin')}>Sign in</button>
-            </p>
-          </form>
-        )}
+                <div className={styles.field}>
+                  <label className={styles.label}>What&apos;s your weight?</label>
+                  <div className={styles.suffixWrap}>
+                    <input
+                      className={styles.suffixInput}
+                      placeholder="0"
+                      type="number"
+                      min="0"
+                      value={weight}
+                      onChange={e => setWeight(e.target.value)}
+                    />
+                    <span className={styles.suffix}>lb</span>
+                  </div>
+                </div>
 
-        {mode === 'signup' && step === 2 && (
-          <form onSubmit={handleSignUp}>
-            <p className={styles.cardTitle}>Great, now for some logistics</p>
+                {error && <p className={styles.error}>{error}</p>}
+                <button type="submit" className={styles.primaryBtn}>Continue</button>
 
-            <div className={styles.field}>
-              <label className={styles.label}>Enter an email</label>
-              <input className={styles.input} placeholder="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-            </div>
+                <p className={styles.divider}>
+                  Already have an account?
+                  <button type="button" className={styles.switchLink} onClick={() => switchMode('signin')}>Sign in</button>
+                </p>
+              </motion.form>
+            )}
 
-            <div className={styles.field}>
-              <label className={styles.label}>Create a password</label>
-              <input className={styles.input} placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-            </div>
+            {mode === 'signup' && step === 2 && (
+              <motion.form
+                key="signup-step-2"
+                onSubmit={handleSignUp}
+                initial={swapPresence.initial}
+                animate={swapPresence.animate}
+                exit={swapPresence.exit}
+              >
+                <p className={styles.cardTitle}>Great, now for some logistics</p>
 
-            {error && <p className={styles.error}>{error}</p>}
-            <button type="submit" className={styles.primaryBtn} disabled={loading}>
-              {loading ? 'Creating account…' : 'Sign Up'}
-            </button>
-            <button type="button" className={styles.googleBtn} onClick={handleGoogle}>
-              {GOOGLE_LOGO} Sign in with Google
-            </button>
+                <div className={styles.field}>
+                  <label className={styles.label}>Enter an email</label>
+                  <input className={styles.input} placeholder="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+                </div>
 
-            <p className={styles.divider}>
-              <button type="button" className={styles.switchLink} onClick={() => setStep(1)}>← Back</button>
-            </p>
-          </form>
-        )}
+                <div className={styles.field}>
+                  <label className={styles.label}>Create a password</label>
+                  <input className={styles.input} placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                </div>
 
-        {mode === 'signin' && (
-          <form onSubmit={handleSignIn}>
-            <p className={styles.cardTitle}>Welcome back</p>
+                {error && <p className={styles.error}>{error}</p>}
+                <button type="submit" className={styles.primaryBtn} disabled={loading}>
+                  {loading ? 'Creating account…' : 'Sign Up'}
+                </button>
+                <button type="button" className={styles.googleBtn} onClick={handleGoogle}>
+                  {GOOGLE_LOGO} Sign in with Google
+                </button>
 
-            <div className={styles.field}>
-              <label className={styles.label}>Email</label>
-              <input className={styles.input} placeholder="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-            </div>
+                <p className={styles.divider}>
+                  <button type="button" className={styles.switchLink} onClick={() => setStep(1)}>← Back</button>
+                </p>
+              </motion.form>
+            )}
 
-            <div className={styles.field}>
-              <label className={styles.label}>Password</label>
-              <input className={styles.input} placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-            </div>
+            {mode === 'signin' && (
+              <motion.form
+                key="signin"
+                onSubmit={handleSignIn}
+                initial={swapPresence.initial}
+                animate={swapPresence.animate}
+                exit={swapPresence.exit}
+              >
+                <p className={styles.cardTitle}>Welcome back</p>
 
-            {error && <p className={styles.error}>{error}</p>}
-            <button type="submit" className={styles.primaryBtn} disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign In'}
-            </button>
-            <button type="button" className={styles.googleBtn} onClick={handleGoogle}>
-              {GOOGLE_LOGO} Sign in with Google
-            </button>
+                <div className={styles.field}>
+                  <label className={styles.label}>Email</label>
+                  <input className={styles.input} placeholder="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+                </div>
 
-            <p className={styles.divider}>
-              No account?
-              <button type="button" className={styles.switchLink} onClick={() => switchMode('signup')}>Sign up</button>
-            </p>
-          </form>
-        )}
+                <div className={styles.field}>
+                  <label className={styles.label}>Password</label>
+                  <input className={styles.input} placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                </div>
+
+                {error && <p className={styles.error}>{error}</p>}
+                <button type="submit" className={styles.primaryBtn} disabled={loading}>
+                  {loading ? 'Signing in…' : 'Sign In'}
+                </button>
+                <button type="button" className={styles.googleBtn} onClick={handleGoogle}>
+                  {GOOGLE_LOGO} Sign in with Google
+                </button>
+
+                <p className={styles.divider}>
+                  No account?
+                  <button type="button" className={styles.switchLink} onClick={() => switchMode('signup')}>Sign up</button>
+                </p>
+              </motion.form>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
     </div>
   );
