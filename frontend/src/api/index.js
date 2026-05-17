@@ -1,1 +1,1 @@
-export { analyzeRegimen, getSourceFindings, streamAnalyzeRegimen } from './real.js';
+export { streamAnalyzeDrug, streamAnalyzeOnboarding } from './real.js';

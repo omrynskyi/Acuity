@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { capitalize } from '../lib/utils.js';
 import { ChevronLeft, Search, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import CustomSelect from '../components/CustomSelect.jsx';
+import { getSwapPresence } from '../lib/motion.js';
 import {
   fetchProfile,
   fetchAllSessions,
@@ -14,8 +16,6 @@ import {
   unarchiveSessions,
 } from '../lib/db.js';
 import styles from './ReportsPage.module.css';
-
-const heroImg = '/hero.jpg';
 
 const SEVERITY_OPTIONS = [
   { value: 'all', label: 'All Severities' },
@@ -31,6 +31,7 @@ const SORT_OPTIONS = [
 
 export default function ReportsPage() {
   const navigate = useNavigate();
+  const reducedMotion = useReducedMotion();
   const [profile, setProfile] = useState(null);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -152,9 +153,10 @@ export default function ReportsPage() {
 
   const allSelected = filteredReports.length > 0 && selected.size === filteredReports.length;
   const someSelected = selected.size > 0;
+  const swapPresence = getSwapPresence(reducedMotion, 8);
 
   return (
-    <div className={styles.page} style={{ backgroundImage: `url(${heroImg})` }}>
+    <div className={styles.page}>
       <div className={styles.container}>
         <header className={styles.header}>
           <button onClick={() => navigate('/')} className={styles.backBtn}>
@@ -208,115 +210,160 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {tab === 'archived' && filteredReports.length > 0 && (
-          <div className={styles.bulkBar}>
-            <label className={styles.selectAllLabel} onClick={toggleSelectAll}>
-              <span className={`${styles.checkbox} ${allSelected ? styles.checkboxChecked : ''}`} />
-              {allSelected ? 'Deselect all' : 'Select all'}
-            </label>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={swapPresence.initial}
+            animate={swapPresence.animate}
+            exit={swapPresence.exit}
+          >
+            <AnimatePresence>
+              {tab === 'archived' && filteredReports.length > 0 && (
+                <div
+                  key="bulk-bar"
+                  className={styles.bulkBar}
+                >
+                  <label className={styles.selectAllLabel} onClick={toggleSelectAll}>
+                    <span className={`${styles.checkbox} ${allSelected ? styles.checkboxChecked : ''}`} />
+                    {allSelected ? 'Deselect all' : 'Select all'}
+                  </label>
 
-            {someSelected && (
-              <div className={styles.bulkActions}>
-                <span className={styles.bulkCount}>{selected.size} selected</span>
-                <button className={styles.bulkBtn} onClick={handleBulkRestore}>
-                  <ArchiveRestore size={14} /> Restore
-                </button>
-                <button className={`${styles.bulkBtn} ${styles.bulkBtnDanger}`} onClick={handleBulkDelete}>
-                  <Trash2 size={14} /> Delete
-                </button>
-              </div>
-            )}
-
-            {!someSelected && (
-              <div className={styles.bulkActions}>
-                <button className={styles.bulkBtn} onClick={handleRestoreAll}>
-                  <ArchiveRestore size={14} /> Restore all
-                </button>
-                <button className={`${styles.bulkBtn} ${styles.bulkBtnDanger}`} onClick={handleDeleteAll}>
-                  <Trash2 size={14} /> Delete all
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className={styles.grid}>
-          {loading ? (
-            <div className={styles.loadingGrid}>Loading reports...</div>
-          ) : (
-            <>
-              {filteredReports.map(session => {
-                const isMajor = session.overall_severity === 'major' || session.overall_severity === 'contraindicated';
-                const isSelected = selected.has(session.id);
-                return (
-                  <div
-                    key={session.id}
-                    className={`${styles.reportCard} ${isSelected ? styles.reportCardSelected : ''}`}
-                    onClick={() => tab === 'active' ? navigate(`/session/${session.id}`) : null}
-                  >
-                    <div className={styles.cardTop}>
-                      <div className={styles.cardTopLeft}>
-                        {tab === 'archived' && (
-                          <span
-                            className={`${styles.checkbox} ${isSelected ? styles.checkboxChecked : ''}`}
-                            onClick={e => toggleSelect(e, session.id)}
-                          />
-                        )}
-                        <span
-                          className={styles.drugName}
-                          onClick={() => navigate(`/session/${session.id}`)}
-                          style={tab === 'archived' ? { cursor: 'pointer' } : {}}
-                        >
-                          {capitalize(session.new_drug)}
-                        </span>
-                      </div>
-                      <div className={styles.cardTopRight}>
-                        <span className={styles.date}>{formatDate(session.generated_at)}</span>
-                        {tab === 'active' ? (
-                          <button
-                            className={styles.archiveBtn}
-                            onClick={e => handleArchive(e, session.id)}
-                            title="Archive"
-                          >
-                            <Archive size={14} />
-                          </button>
-                        ) : (
-                          <div className={styles.archivedCardActions}>
-                            <button
-                              className={styles.archiveBtn}
-                              onClick={e => handleUnarchive(e, session.id)}
-                              title="Restore"
-                            >
-                              <ArchiveRestore size={14} />
-                            </button>
-                            <button
-                              className={`${styles.archiveBtn} ${styles.deleteBtn}`}
-                              onClick={e => handleDelete(e, session.id)}
-                              title="Delete permanently"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                  {someSelected && (
+                    <div className={styles.bulkActions}>
+                      <span className={styles.bulkCount}>{selected.size} selected</span>
+                      <button className={styles.bulkBtn} onClick={handleBulkRestore}>
+                        <ArchiveRestore size={14} /> Restore
+                      </button>
+                      <button className={`${styles.bulkBtn} ${styles.bulkBtnDanger}`} onClick={handleBulkDelete}>
+                        <Trash2 size={14} /> Delete
+                      </button>
                     </div>
-                    <div className={styles.status}>
-                      <span className={`${styles.dot} ${isMajor ? styles.dotDanger : styles.dotSafe}`} />
-                      <span className={`${styles.statusLabel} ${isMajor ? styles.statusDanger : styles.statusSafe}`}>
-                        {isMajor ? 'Dangerous Combination' : 'Good match'}
-                      </span>
+                  )}
+
+                  {!someSelected && (
+                    <div className={styles.bulkActions}>
+                      <button className={styles.bulkBtn} onClick={handleRestoreAll}>
+                        <ArchiveRestore size={14} /> Restore all
+                      </button>
+                      <button className={`${styles.bulkBtn} ${styles.bulkBtnDanger}`} onClick={handleDeleteAll}>
+                        <Trash2 size={14} /> Delete all
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <motion.div
+                  key={`loading-${tab}`}
+                  className={`${styles.gridSwap} ${styles.loaderSwap}`}
+                  initial={swapPresence.initial}
+                  animate={swapPresence.animate}
+                  exit={swapPresence.exit}
+                >
+                  <div className={styles.loadingStage}>
+                    <div className="app-loader">
+                      <div className="app-loader-mark" aria-hidden="true">
+                        <div className="app-loader-ring" />
+                        <div className="app-loader-core" />
+                      </div>
+                      <div className="app-loader-copy">
+                        <p className="app-loader-title">
+                          {tab === 'archived' ? 'Loading archived reports' : 'Loading your reports'}
+                        </p>
+                        <p className="app-loader-subtitle">
+                          Preparing the full report list before showing it all at once.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                );
-              })}
-              {filteredReports.length === 0 && (
-                <p className={styles.empty}>
-                  {tab === 'archived' ? 'No archived reports.' : 'No reports found matching your criteria.'}
-                </p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={`loaded-${tab}`}
+                  className={styles.gridSwap}
+                  initial={swapPresence.initial}
+                  animate={swapPresence.animate}
+                  exit={swapPresence.exit}
+                >
+                  <div className={styles.grid}>
+                    {filteredReports.map(session => {
+                      const isMajor = session.overall_severity === 'major' || session.overall_severity === 'contraindicated';
+                      const isSelected = selected.has(session.id);
+                      return (
+                        <div
+                          key={session.id}
+                          className={`${styles.reportCard} ${isSelected ? styles.reportCardSelected : ''}`}
+                          onClick={() => tab === 'active' ? navigate(`/session/${session.id}`) : null}
+                        >
+                          <div className={styles.cardTop}>
+                            <div className={styles.cardTopLeft}>
+                              {tab === 'archived' && (
+                                <span
+                                  className={`${styles.checkbox} ${isSelected ? styles.checkboxChecked : ''}`}
+                                  onClick={e => toggleSelect(e, session.id)}
+                                />
+                              )}
+                              <span
+                                className={styles.drugName}
+                                onClick={() => navigate(`/session/${session.id}`)}
+                                style={tab === 'archived' ? { cursor: 'pointer' } : {}}
+                              >
+                                {capitalize(session.new_drug)}
+                              </span>
+                            </div>
+                            <div className={styles.cardTopRight}>
+                              <span className={styles.date}>{formatDate(session.generated_at)}</span>
+                              {tab === 'active' ? (
+                                <button
+                                  className={styles.archiveBtn}
+                                  onClick={e => handleArchive(e, session.id)}
+                                  title="Archive"
+                                >
+                                  <Archive size={14} />
+                                </button>
+                              ) : (
+                                <div className={styles.archivedCardActions}>
+                                  <button
+                                    className={styles.archiveBtn}
+                                    onClick={e => handleUnarchive(e, session.id)}
+                                    title="Restore"
+                                  >
+                                    <ArchiveRestore size={14} />
+                                  </button>
+                                  <button
+                                    className={`${styles.archiveBtn} ${styles.deleteBtn}`}
+                                    onClick={e => handleDelete(e, session.id)}
+                                    title="Delete permanently"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className={styles.status}>
+                            <span className={`${styles.dot} ${isMajor ? styles.dotDanger : styles.dotSafe}`} />
+                            <span className={`${styles.statusLabel} ${isMajor ? styles.statusDanger : styles.statusSafe}`}>
+                              {isMajor ? 'Dangerous Combination' : 'Good match'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filteredReports.length === 0 && (
+                      <p className={styles.empty}>
+                        {tab === 'archived' ? 'No archived reports.' : 'No reports found matching your criteria.'}
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
               )}
-            </>
-          )}
-        </div>
+            </AnimatePresence>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );

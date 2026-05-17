@@ -4,9 +4,10 @@ set -e
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 cleanup() {
+  trap - EXIT INT TERM
   echo ""
   echo "Stopping..."
-  kill 0
+  kill 0 2>/dev/null
 }
 trap cleanup EXIT INT TERM
 

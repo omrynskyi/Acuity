@@ -115,18 +115,37 @@ async def _patient_summary(clinician_summary: str, interactions: list[Synthesize
     )
 
 
+_CORE_SOURCES = ("openfda_label", "openfda_faers", "decagon")
+
+
 async def build_report(
     regimen: list[NormalizedDrug],
     pair_results: Iterable[SynthesizedInteraction],
     *,
     new_pairs: list[tuple[str, str]] | None = None,
     cached_pairs: list[tuple[str, str]] | None = None,
+    source_findings: dict | None = None,
 ) -> RegimenReport:
     """Aggregate per-pair synthesis output into a `RegimenReport`."""
     interactions = sorted(pair_results, key=_sort_key)
     overall = _overall_summary(interactions)
     patient = await _patient_summary(overall, interactions)
-    sources_consulted = sorted({c.source for i in interactions for c in i.citations})
+
+    # Sources from citations (works for non-no_concern results)
+    consulted: set[str] = {c.source for i in interactions for c in i.citations}
+
+    # Sources actually queried for new pairs — include even if NO_DATA
+    if source_findings:
+        for sf_list in source_findings.values():
+            for sf in sf_list:
+                consulted.add(sf.source)
+
+    # For cached pairs the source_findings are gone, but the core three sources
+    # were always queried when the pair was first computed.
+    if cached_pairs:
+        consulted.update(_CORE_SOURCES)
+
+    sources_consulted = sorted(consulted)
     return RegimenReport(
         regimen=regimen,
         generated_at=datetime.now(timezone.utc),

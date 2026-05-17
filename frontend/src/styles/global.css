@@ -5,6 +5,8 @@
 }
 
 :root {
+  --app-min-height: 100vh;
+  --chrome-fade-color: #e6ecef;
   --color-bg: #f4f4f1;
   --color-surface: #ffffff;
   --color-text: #1a1a1a;
@@ -27,39 +29,103 @@
   --font-display: 'Nanum Myeongjo', Georgia, serif;
 }
 
-html {
-  background-color: #c8d9e6;
-  background-image: var(--hero-bg);
-  background-size: cover;
-  background-position: center 20%;
+@supports (min-height: 100dvh) {
+  :root {
+    --app-min-height: 100dvh;
+  }
+}
+
+html,
+body {
+  min-height: 100%;
+  background-color: var(--chrome-fade-color);
 }
 
 /* Fixed background layer; inset:0 covers the full viewport on iOS with viewport-fit=cover.
    translateZ(0) forces GPU compositing to prevent tearing on scroll. */
 #bg-layer {
   position: fixed;
-  inset: 0;
+  top: -30vh;
+  right: 0;
+  bottom: -30vh;
+  left: 0;
   background-image: var(--hero-bg);
   background-size: cover;
   background-position: center 20%;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
+  will-change: transform;
+}
+
+#chrome-fade {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(230, 236, 239, 0.48) 0%,
+      rgba(230, 236, 239, 0.24) 34%,
+      rgba(230, 236, 239, 0.08) 66%,
+      rgba(230, 236, 239, 0) 100%
+    ) top / 100% calc(env(safe-area-inset-top) + 72px) no-repeat,
+    linear-gradient(
+      to top,
+      rgba(230, 236, 239, 0.78) 0%,
+      rgba(230, 236, 239, 0.50) 34%,
+      rgba(230, 236, 239, 0.18) 66%,
+      rgba(230, 236, 239, 0) 100%
+    ) bottom / 100% calc(env(safe-area-inset-bottom) + 136px) no-repeat;
+}
+
+.page-gradient-layer {
+  position: fixed;
+  top: -30vh;
+  right: 0;
+  bottom: -30vh;
+  left: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(244, 244, 241, 0) 0vh,
+    rgba(244, 244, 241, 0) 30vh,
+    rgba(244, 244, 241, 0.10) 48vh,
+    rgba(244, 244, 241, 0.42) 68vh,
+    rgba(244, 244, 241, 0.82) 88vh,
+    var(--color-bg) 112vh
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
 body {
-  height: 100%;
   background-color: transparent;
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 #root {
-  min-height: 100vh;
+  min-height: var(--app-min-height);
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+}
+
+.app-shell {
+  position: relative;
+  min-height: var(--app-min-height);
+}
+
+.app-route-layer {
+  position: relative;
+  z-index: 1;
+  min-height: var(--app-min-height);
 }
 
 a {
@@ -78,4 +144,128 @@ input, select, textarea {
   font-family: var(--font-body);
   /* iOS Safari zooms on focus when font-size < 16px */
   font-size: max(16px, 1em);
+}
+
+.skeleton-block {
+  position: relative;
+  overflow: hidden;
+  background: rgba(72, 93, 67, 0.08);
+}
+
+.skeleton-block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.app-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.app-loader-mark {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  display: grid;
+  place-items: center;
+}
+
+.app-loader-ring,
+.app-loader-ring::before,
+.app-loader-ring::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+}
+
+.app-loader-ring {
+  border: 1px solid rgba(72, 93, 67, 0.12);
+}
+
+.app-loader-ring::before,
+.app-loader-ring::after {
+  content: '';
+  border: 1px solid transparent;
+  animation: app-loader-pulse 1.8s ease-out infinite;
+}
+
+.app-loader-ring::before {
+  border-color: rgba(72, 93, 67, 0.24);
+}
+
+.app-loader-ring::after {
+  border-color: rgba(72, 93, 67, 0.14);
+  animation-delay: 0.55s;
+}
+
+.app-loader-core {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--color-green);
+  box-shadow: 0 0 0 10px rgba(72, 93, 67, 0.10);
+  animation: app-loader-core-breathe 1.4s ease-in-out infinite;
+}
+
+.app-loader-copy {
+  max-width: 320px;
+}
+
+.app-loader-title {
+  font-family: var(--font-display);
+  font-size: 23px;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+
+.app-loader-subtitle {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+@keyframes app-loader-pulse {
+  0% {
+    transform: scale(0.74);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1.12);
+    opacity: 0;
+  }
+}
+
+@keyframes app-loader-core-breathe {
+  0%,
+  100% {
+    transform: scale(0.92);
+  }
+
+  50% {
+    transform: scale(1);
+  }
 }

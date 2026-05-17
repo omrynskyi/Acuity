@@ -17,9 +17,27 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any, Optional
 
 import httpx
+from dotenv import load_dotenv
+
+
+def _load_project_env() -> None:
+    """Load the repo's .env no matter which entrypoint imported this module.
+
+    The FastAPI app loads dotenv in `backend.main`, but scripts like
+    `scripts/iterate_synthesis.py` and direct `backend.graph` imports bypass
+    that file entirely. Loading here keeps the LLM path consistent across the
+    API, local scripts, and sandbox smoke tests.
+    """
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path, override=False)
+
+
+_load_project_env()
 
 DEFAULT_BASE = "https://integrate.api.nvidia.com/v1"
 SUPER_MODEL = os.environ.get("NEMOTRON_SUPER_MODEL", "nvidia/nemotron-3-super-120b-a12b")
@@ -42,6 +60,23 @@ def _api_key() -> str:
             "Set one in .env or run inside the NemoClaw sandbox."
         )
     return key
+
+
+def _extract_message_text(message: dict[str, Any]) -> str | None:
+    """Return assistant text across providers' message shapes."""
+    content = message.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                text = item.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+        joined = "".join(parts).strip()
+        return joined or None
+    return None
 
 
 async def chat(
@@ -85,8 +120,18 @@ async def chat(
         )
         r.raise_for_status()
         data = r.json()
-        content = data["choices"][0]["message"].get("content")
-        return content or ""
+        choice = data["choices"][0]
+        message = choice["message"]
+        content = _extract_message_text(message)
+        if content is not None:
+            return content
+
+        finish_reason = choice.get("finish_reason")
+        has_reasoning = bool(message.get("reasoning_content"))
+        raise RuntimeError(
+            "LLM response did not include assistant content "
+            f"(finish_reason={finish_reason!r}, reasoning_only={has_reasoning})"
+        )
     finally:
         if owned:
             await client.aclose()

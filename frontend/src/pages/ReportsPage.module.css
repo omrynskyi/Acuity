@@ -1,25 +1,9 @@
 .page {
-  min-height: 100vh;
+  min-height: var(--app-min-height);
   position: relative;
-  background-size: cover;
-  background-position: center 60%;
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.page::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(244, 244, 241, 0.08) 0%,
-    rgba(244, 244, 241, 0.55) 40%,
-    rgba(244, 244, 241, 0.88) 70%,
-    var(--color-bg) 100%
-  );
-  pointer-events: none;
 }
 
 .container {
@@ -28,23 +12,6 @@
   width: 100%;
   max-width: 1000px;
   padding: max(80px, env(safe-area-inset-top)) 24px max(40px, env(safe-area-inset-bottom));
-}
-
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  color: var(--color-text-muted);
-}
-
-.loadingGrid {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 100px 0;
-  color: var(--color-text-muted);
-  font-style: italic;
-  font-size: 14px;
 }
 
 .header {
@@ -166,6 +133,21 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
+}
+
+.gridSwap {
+  width: 100%;
+}
+
+.loaderSwap {
+  min-height: 360px;
+}
+
+.loadingStage {
+  min-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .reportCard {

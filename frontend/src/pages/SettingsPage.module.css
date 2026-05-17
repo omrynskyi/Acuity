@@ -1,31 +1,15 @@
 .page {
-  min-height: 100vh;
+  min-height: var(--app-min-height);
   position: relative;
-  background-size: cover;
-  background-position: center 60%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: max(80px, env(safe-area-inset-top)) 24px max(40px, env(safe-area-inset-bottom));
-}
-
-.page::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(244, 244, 241, 0.08) 0%,
-    rgba(244, 244, 241, 0.55) 30%,
-    rgba(244, 244, 241, 0.92) 60%,
-    var(--color-bg) 100%
-  );
-  pointer-events: none;
+  padding: max(112px, calc(env(safe-area-inset-top) + 72px)) 24px max(40px, env(safe-area-inset-bottom));
 }
 
 .logo {
   position: absolute;
-  top: 20px;
+  top: calc(env(safe-area-inset-top) + 34px);
   left: 28px;
   font-family: var(--font-display);
   font-size: 18px;
@@ -36,7 +20,7 @@
 
 .back {
   position: absolute;
-  top: 22px;
+  top: calc(env(safe-area-inset-top) + 36px);
   right: 28px;
   display: flex;
   align-items: center;
@@ -108,6 +92,12 @@
   padding: 8px 10px;
 }
 
+.tokenSlot {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+}
+
 .tokenValue {
   flex: 1;
   font-family: monospace;
@@ -122,6 +112,37 @@
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+}
+
+.loadingToken {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f5f5f2;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.loadingTokenValue,
+.loadingTokenBtn,
+.loadingAccountName {
+  border-radius: 999px;
+}
+
+.loadingTokenValue {
+  flex: 1;
+  height: 18px;
+}
+
+.loadingTokenActions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.loadingTokenBtn {
+  width: 54px;
+  height: 24px;
 }
 
 .noToken {
@@ -166,6 +187,17 @@
 .accountEmail {
   font-size: 13px;
   margin: 0;
+}
+
+.accountSlot {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.loadingAccountName {
+  width: 132px;
+  height: 14px;
 }
 
 .dangerBtn {

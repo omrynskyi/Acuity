@@ -1,44 +1,40 @@
 .page {
-  min-height: 100vh;
+  min-height: var(--app-min-height);
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-top: max(64px, env(safe-area-inset-top));
+  padding-top: max(112px, calc(env(safe-area-inset-top) + 72px));
   padding-bottom: max(48px, env(safe-area-inset-bottom));
-}
-
-/* Real DOM element — iOS Safari doesn't reliably apply position:fixed to pseudo-elements
-   on non-html/body ancestors. */
-.gradient {
-  position: fixed;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(244, 244, 241, 0.0) 0vh,
-    rgba(244, 244, 241, 0.35) 20vh,
-    rgba(244, 244, 241, 0.70) 50vh,
-    rgba(244, 244, 241, 0.92) 80vh,
-    var(--color-bg) 110vh
-  );
-  pointer-events: none;
-  z-index: 0;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
 }
 
 /* ── Logo ── */
 
 .logo {
   position: absolute;
-  top: 20px;
+  top: calc(env(safe-area-inset-top) + 34px);
   left: 28px;
   font-family: var(--font-display);
   font-size: 18px;
   font-weight: 700;
   color: var(--color-green);
   z-index: 2;
+}
+
+.settingsBtn {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 34px);
+  right: 28px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  color: inherit;
+  opacity: 0.6;
+}
+
+.settingsBtn:hover {
+  opacity: 1;
 }
 
 /* ── Content wrapper ── */
@@ -52,6 +48,19 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.contentSwap {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.loadingStage {
+  min-height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ── Greeting ── */
@@ -463,7 +472,6 @@
   align-items: center;
   justify-content: center;
   z-index: 100;
-  backdrop-filter: blur(2px);
 }
 
 .modalCard {

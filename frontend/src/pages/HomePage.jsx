@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { capitalize } from '../lib/utils.js';
 import { Edit2, Search, ChevronRight, Trash2, Settings } from 'lucide-react';
 import DrugRow from '../components/DrugRow.jsx';
 import CustomSelect from '../components/CustomSelect.jsx';
+import {
+  getItemPresence,
+  getModalCardPresence,
+  getModalOverlayPresence,
+  getSwapPresence,
+} from '../lib/motion.js';
 import { fetchProfile, fetchRegimen, fetchRecentSessions, updateProfile, updateRegimenDrug, addDrugToRegimen, removeDrugFromRegimen } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
 import styles from './HomePage.module.css';
@@ -20,11 +27,13 @@ async function fetchDrugSuggestions(term) {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const reducedMotion = useReducedMotion();
   const [newDrug, setNewDrug] = useState('');
   const [newDrugSuggestions, setNewDrugSuggestions] = useState([]);
   const [profile, setProfile] = useState(null);
   const [regimen, setRegimen] = useState([]);
   const [pastSessions, setPastSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -38,17 +47,30 @@ export default function HomePage() {
   const suggestRef = useRef(null);
   const newDrugSuggestRef = useRef(null);
 
-  function loadData() {
-    fetchProfile()
-      .then((p) => {
-        if (!p) return;
-        setProfile(p);
-        return Promise.all([
-          fetchRegimen(p.id).then(setRegimen),
-          fetchRecentSessions(p.id).then(setPastSessions),
-        ]);
-      })
-      .catch(console.error);
+  async function loadData() {
+    setLoading(true);
+    try {
+      const p = await fetchProfile();
+      if (!p) {
+        setProfile(null);
+        setRegimen([]);
+        setPastSessions([]);
+        return;
+      }
+
+      const [nextRegimen, nextSessions] = await Promise.all([
+        fetchRegimen(p.id),
+        fetchRecentSessions(p.id),
+      ]);
+
+      setProfile(p);
+      setRegimen(nextRegimen || []);
+      setPastSessions(nextSessions || []);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -219,31 +241,18 @@ export default function HomePage() {
     }
   }
 
-  if (!profile) return (
-    <div className={styles.page}>
-      <div className={styles.gradient} />
-      <div className={styles.logo}>Acuity</div>
-    </div>
-  );
+  const itemPresence = getItemPresence(reducedMotion, 10, 0.99);
+  const modalOverlayPresence = getModalOverlayPresence(reducedMotion);
+  const modalCardPresence = getModalCardPresence(reducedMotion);
+  const swapPresence = getSwapPresence(reducedMotion, 12);
 
-  return (
-    <div className={styles.page}>
-      <div className={styles.gradient} />
-      <div className={styles.logo}>Acuity</div>
-      <button
-        onClick={() => navigate('/settings')}
-        style={{ position: 'absolute', top: 20, right: 28, background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6, zIndex: 2, display: 'flex', alignItems: 'center' }}
-        aria-label="Settings"
-      >
-        <Settings size={18} />
-      </button>
-
-      <div className={styles.content}>
+  function renderLoadedContent() {
+    return (
+      <>
         <h1 className={styles.greeting}>Hello, {profile.name}</h1>
 
         <div className={styles.columns}>
           <div className={styles.left}>
-            {/* My Medicine */}
             <div className={styles.card}>
               <div className={styles.cardHeader}>
                 <span className={styles.cardTitle}>My Medicine</span>
@@ -256,7 +265,6 @@ export default function HomePage() {
               ))}
             </div>
 
-            {/* Taking something new */}
             <div className={styles.ctaCard}>
               <div className={styles.ctaTopRow}>
                 <p className={styles.ctaLabel}>Taking something new?</p>
@@ -297,7 +305,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* My Profile */}
           <div className={styles.right}>
             <div className={styles.card}>
               <div className={styles.cardHeader}>
@@ -322,7 +329,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* My Reports */}
         <section>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>My Reports</h2>
@@ -357,143 +363,216 @@ export default function HomePage() {
             })}
           </div>
         </section>
+      </>
+    );
+  }
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.logo}>Acuity</div>
+      {profile && (
+        <button
+          onClick={() => navigate('/settings')}
+          className={styles.settingsBtn}
+          aria-label="Settings"
+        >
+          <Settings size={18} />
+        </button>
+      )}
+
+      <div className={styles.content}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={loading ? 'home-loading' : 'home-loaded'}
+            className={styles.contentSwap}
+            initial={swapPresence.initial}
+            animate={swapPresence.animate}
+            exit={swapPresence.exit}
+          >
+            {loading ? (
+              <div className={styles.loadingStage}>
+                <div className="app-loader">
+                  <div className="app-loader-mark" aria-hidden="true">
+                    <div className="app-loader-ring" />
+                    <div className="app-loader-core" />
+                  </div>
+                  <div className="app-loader-copy">
+                    <p className="app-loader-title">Loading your dashboard</p>
+                  </div>
+                </div>
+              </div>
+            ) : profile ? renderLoadedContent() : null}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {medOpen && (
-        <div className={styles.modalOverlay} onClick={() => setMedOpen(false)}>
-          <div className={styles.modalCard} onClick={e => e.stopPropagation()} style={{ maxWidth: 540 }}>
-            <h2 className={styles.modalTitle}>My Medicine</h2>
-
-            {/* Search */}
-            <div className={styles.medSearchWrap} ref={suggestRef}>
-              <input
-                className={styles.medSearchInput}
-                placeholder="Add a medicine…"
-                value={medQuery}
-                onChange={e => setMedQuery(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (medSuggestions.length > 0) addMedEntry(medSuggestions[0]);
-                    else if (medQuery.trim()) addMedEntry(medQuery.trim());
-                  }
-                }}
-                autoComplete="off"
-              />
-              {medSuggestions.length > 0 && (
-                <ul className={styles.medSuggestList}>
-                  {medSuggestions.slice(0, 6).map(name => (
-                    <li key={name} className={styles.medSuggestItem} onMouseDown={() => addMedEntry(name)}>
-                      {name}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Drug list */}
-            <div className={styles.medEditList}>
-              {medList.map((drug, i) => (
-                <div key={drug.id ?? drug.input_name} className={styles.medEditRow}>
-                  <span className={styles.medEditName}>{capitalize(drug.generic_name || drug.input_name)}</span>
-
-                  <input
-                    className={styles.medEditDose}
-                    placeholder="Dose"
-                    value={drug.dose ?? ''}
-                    onChange={e => updateMedField(i, 'dose', e.target.value)}
-                  />
-
-                  {drug.frequency === 'custom' ? (
-                    <input
-                      className={styles.freqCustomInput}
-                      placeholder="e.g. every 3 days"
-                      value={drug.custom_frequency ?? ''}
-                      onChange={e => updateMedField(i, 'custom_frequency', e.target.value)}
-                      onBlur={e => { if (!e.target.value.trim()) updateMedField(i, 'frequency', 'daily'); }}
-                      autoFocus
-                    />
-                  ) : (
-                    <CustomSelect
-                      compact
-                      value={drug.frequency ?? 'daily'}
-                      onChange={v => updateMedField(i, 'frequency', v)}
-                      options={FREQ_OPTIONS.map(f => ({ value: f, label: f }))}
-                    />
-                  )}
-
-                  <button
-                    type="button"
-                    className={styles.medRemoveBtn}
-                    onClick={() => removeMedEntry(i)}
-                    aria-label="Remove"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-              {medList.length === 0 && (
-                <p className={styles.medEmpty}>No medicines added yet.</p>
-              )}
-            </div>
-
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.modalCancelBtn} onClick={() => setMedOpen(false)}>Cancel</button>
-              <button type="button" className={styles.modalSaveBtn} onClick={saveMeds} disabled={medSaving}>
-                {medSaving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editOpen && (
-        <div className={styles.modalOverlay} onClick={() => setEditOpen(false)}>
-          <form
-            className={styles.modalCard}
-            onClick={(e) => e.stopPropagation()}
-            onSubmit={saveEdit}
+      <AnimatePresence>
+        {medOpen && (
+          <motion.div
+            className={styles.modalOverlay}
+            onClick={() => setMedOpen(false)}
+            initial={modalOverlayPresence.initial}
+            animate={modalOverlayPresence.animate}
+            exit={modalOverlayPresence.exit}
           >
-            <h2 className={styles.modalTitle}>Edit Profile</h2>
+            <motion.div
+              className={styles.modalCard}
+              onClick={e => e.stopPropagation()}
+              style={{ maxWidth: 540 }}
+              initial={modalCardPresence.initial}
+              animate={modalCardPresence.animate}
+              exit={modalCardPresence.exit}
+            >
+              <h2 className={styles.modalTitle}>My Medicine</h2>
 
-            <div className={styles.modalGrid}>
-              <div className={styles.modalField}>
-                <label className={styles.modalLabel}>Name</label>
-                <input className={styles.modalInput} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+              <div className={styles.medSearchWrap} ref={suggestRef}>
+                <input
+                  className={styles.medSearchInput}
+                  placeholder="Add a medicine…"
+                  value={medQuery}
+                  onChange={e => setMedQuery(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (medSuggestions.length > 0) addMedEntry(medSuggestions[0]);
+                      else if (medQuery.trim()) addMedEntry(medQuery.trim());
+                    }
+                  }}
+                  autoComplete="off"
+                />
+                {medSuggestions.length > 0 && (
+                  <ul className={styles.medSuggestList}>
+                    {medSuggestions.slice(0, 6).map(name => (
+                      <li key={name} className={styles.medSuggestItem} onMouseDown={() => addMedEntry(name)}>
+                        {name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-              <div className={styles.modalField}>
-                <label className={styles.modalLabel}>Age</label>
-                <input className={styles.modalInput} type="number" min="0" value={editForm.age} onChange={e => setEditForm(f => ({ ...f, age: e.target.value }))} />
-              </div>
-              <div className={styles.modalField}>
-                <label className={styles.modalLabel}>Sex</label>
-                <input className={styles.modalInput} value={editForm.sex} onChange={e => setEditForm(f => ({ ...f, sex: e.target.value }))} />
-              </div>
-              <div className={styles.modalField}>
-                <label className={styles.modalLabel}>Height</label>
-                <input className={styles.modalInput} placeholder="e.g. 5 ft 10 in" value={editForm.height} onChange={e => setEditForm(f => ({ ...f, height: e.target.value }))} />
-              </div>
-              <div className={styles.modalField}>
-                <label className={styles.modalLabel}>Weight</label>
-                <input className={styles.modalInput} placeholder="e.g. 165 lb" value={editForm.weight} onChange={e => setEditForm(f => ({ ...f, weight: e.target.value }))} />
-              </div>
-              <div className={styles.modalField}>
-                <label className={styles.modalLabel}>Doctor</label>
-                <input className={styles.modalInput} value={editForm.doctor} onChange={e => setEditForm(f => ({ ...f, doctor: e.target.value }))} />
-              </div>
-              <div className={`${styles.modalField} ${styles.modalFieldFull}`}>
-                <label className={styles.modalLabel}>Doctor email</label>
-                <input className={styles.modalInput} type="email" value={editForm.doctor_email} onChange={e => setEditForm(f => ({ ...f, doctor_email: e.target.value }))} />
-              </div>
-            </div>
 
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.modalCancelBtn} onClick={() => setEditOpen(false)}>Cancel</button>
-              <button type="submit" className={styles.modalSaveBtn} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-            </div>
-          </form>
-        </div>
-      )}
+              <div className={styles.medEditList}>
+                <AnimatePresence>
+                  {medList.map((drug, i) => (
+                    <motion.div
+                      key={drug.id ?? drug.input_name}
+                      className={styles.medEditRow}
+                      initial={itemPresence.initial}
+                      animate={itemPresence.animate}
+                      exit={itemPresence.exit}
+                    >
+                      <span className={styles.medEditName}>{capitalize(drug.generic_name || drug.input_name)}</span>
+
+                      <input
+                        className={styles.medEditDose}
+                        placeholder="Dose"
+                        value={drug.dose ?? ''}
+                        onChange={e => updateMedField(i, 'dose', e.target.value)}
+                      />
+
+                      {drug.frequency === 'custom' ? (
+                        <input
+                          className={styles.freqCustomInput}
+                          placeholder="e.g. every 3 days"
+                          value={drug.custom_frequency ?? ''}
+                          onChange={e => updateMedField(i, 'custom_frequency', e.target.value)}
+                          onBlur={e => { if (!e.target.value.trim()) updateMedField(i, 'frequency', 'daily'); }}
+                          autoFocus
+                        />
+                      ) : (
+                        <CustomSelect
+                          compact
+                          value={drug.frequency ?? 'daily'}
+                          onChange={v => updateMedField(i, 'frequency', v)}
+                          options={FREQ_OPTIONS.map(f => ({ value: f, label: f }))}
+                        />
+                      )}
+
+                      <button
+                        type="button"
+                        className={styles.medRemoveBtn}
+                        onClick={() => removeMedEntry(i)}
+                        aria-label="Remove"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                {medList.length === 0 && (
+                  <p className={styles.medEmpty}>No medicines added yet.</p>
+                )}
+              </div>
+
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.modalCancelBtn} onClick={() => setMedOpen(false)}>Cancel</button>
+                <button type="button" className={styles.modalSaveBtn} onClick={saveMeds} disabled={medSaving}>
+                  {medSaving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {editOpen && (
+          <motion.div
+            className={styles.modalOverlay}
+            onClick={() => setEditOpen(false)}
+            initial={modalOverlayPresence.initial}
+            animate={modalOverlayPresence.animate}
+            exit={modalOverlayPresence.exit}
+          >
+            <motion.form
+              className={styles.modalCard}
+              onClick={(e) => e.stopPropagation()}
+              onSubmit={saveEdit}
+              initial={modalCardPresence.initial}
+              animate={modalCardPresence.animate}
+              exit={modalCardPresence.exit}
+            >
+              <h2 className={styles.modalTitle}>Edit Profile</h2>
+
+              <div className={styles.modalGrid}>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Name</label>
+                  <input className={styles.modalInput} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Age</label>
+                  <input className={styles.modalInput} type="number" min="0" value={editForm.age} onChange={e => setEditForm(f => ({ ...f, age: e.target.value }))} />
+                </div>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Sex</label>
+                  <input className={styles.modalInput} value={editForm.sex} onChange={e => setEditForm(f => ({ ...f, sex: e.target.value }))} />
+                </div>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Height</label>
+                  <input className={styles.modalInput} placeholder="e.g. 5 ft 10 in" value={editForm.height} onChange={e => setEditForm(f => ({ ...f, height: e.target.value }))} />
+                </div>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Weight</label>
+                  <input className={styles.modalInput} placeholder="e.g. 165 lb" value={editForm.weight} onChange={e => setEditForm(f => ({ ...f, weight: e.target.value }))} />
+                </div>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Doctor</label>
+                  <input className={styles.modalInput} value={editForm.doctor} onChange={e => setEditForm(f => ({ ...f, doctor: e.target.value }))} />
+                </div>
+                <div className={`${styles.modalField} ${styles.modalFieldFull}`}>
+                  <label className={styles.modalLabel}>Doctor email</label>
+                  <input className={styles.modalInput} type="email" value={editForm.doctor_email} onChange={e => setEditForm(f => ({ ...f, doctor_email: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.modalCancelBtn} onClick={() => setEditOpen(false)}>Cancel</button>
+                <button type="submit" className={styles.modalSaveBtn} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+              </div>
+            </motion.form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
