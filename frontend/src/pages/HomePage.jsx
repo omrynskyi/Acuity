@@ -398,7 +398,6 @@ export default function HomePage() {
                   </div>
                   <div className="app-loader-copy">
                     <p className="app-loader-title">Loading your dashboard</p>
-                    <p className="app-loader-subtitle">Gathering your profile, medicines, and recent reports.</p>
                   </div>
                 </div>
               </div>
