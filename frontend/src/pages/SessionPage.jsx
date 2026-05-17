@@ -18,6 +18,20 @@ import { fetchSession, fetchProfile, fetchRegimen, addDrugToRegimen } from '../l
 import { SOURCE_META } from '../lib/constants.js';
 import styles from './SessionPage.module.css';
 
+function normalizeDrugKey(name) {
+  return (name || '').toLowerCase().split('(')[0].trim();
+}
+
+function drugAliases(drug) {
+  return [
+    drug?.input_name,
+    drug?.generic_name,
+    ...(drug?.brand_names ?? []),
+  ]
+    .map(normalizeDrugKey)
+    .filter(Boolean);
+}
+
 export default function SessionPage() {
   const { id } = useParams();
   const location = useLocation();
@@ -36,8 +50,10 @@ export default function SessionPage() {
   const [error, setError] = useState(null);
   const [synthesizedPairs, setSynthesizedPairs] = useState(new Map());
   const [totalPairs, setTotalPairs] = useState(0);
+  const [cachedPairCount, setCachedPairCount] = useState(0);
   const [streamPhase, setStreamPhase] = useState('idle');
   const [sourceUpdates, setSourceUpdates] = useState([]);
+  const [regimenAliases, setRegimenAliases] = useState({});
   const calledRef = useRef(false);
 
   const [addedToList, setAddedToList] = useState(false);
@@ -90,8 +106,28 @@ export default function SessionPage() {
         if (type === 'intake_done') {
           setStreamPhase('intake');
           setTotalPairs(data.pairs?.length ?? 0);
+          const targetAliases = new Set(
+            (data.regimen ?? [])
+              .filter((drug) => drugAliases(drug).includes(normalizeDrugKey(newDrug)))
+              .flatMap(drugAliases)
+          );
+          const nextAliases = Object.fromEntries(
+            activeRegimen.map((drugName) => {
+              const displayKey = normalizeDrugKey(drugName);
+              const matchedDrug = (data.regimen ?? []).find((drug) => {
+                const aliases = drugAliases(drug);
+                return aliases.includes(displayKey) && !aliases.some((alias) => targetAliases.has(alias));
+              });
+              const aliases = matchedDrug ? drugAliases(matchedDrug) : [displayKey];
+              return [drugName, Array.from(new Set(aliases))];
+            })
+          );
+          setRegimenAliases(nextAliases);
         } else if (type === 'memory_result') {
-          setStreamPhase('synthesis');
+          const nextCached = data.cached_pairs?.length ?? 0;
+          const nextNew = data.new_pairs?.length ?? 0;
+          setCachedPairCount(nextCached);
+          setStreamPhase(nextNew === 0 && nextCached > 0 ? 'cached' : 'synthesis');
         } else if (type === 'source_result') {
           setSourceUpdates((prev) => [...prev, data]);
           setStreamPhase('fanout');
@@ -100,7 +136,7 @@ export default function SessionPage() {
           setSynthesizedPairs((prev) => new Map(prev).set(key, data));
         } else if (type === 'report_done') {
           setReport(data.report);
-          navigate(`/session/${data.session_id}`, { replace: true, state: location.state });
+          navigate(`/session/${data.session_id}`, { replace: true });
           setTimeout(() => setPhase('done'), 300);
         }
       },
@@ -111,15 +147,16 @@ export default function SessionPage() {
   const PHASE_LABELS = {
     idle: 'Preparing analysis…',
     intake: 'Identifying drugs via RxNorm…',
+    cached: `Using cached analysis for ${cachedPairCount} pair${cachedPairCount === 1 ? '' : 's'}…`,
     fanout: `Querying sources (${sourceUpdates.length} / ${totalPairs * 3})…`,
     synthesis: `Synthesizing interactions (${synthesizedPairs.size} / ${totalPairs})`,
     done: 'Analysis complete',
   };
 
   function isDrugDone(drugName) {
-    const lower = drugName.toLowerCase();
+    const aliases = regimenAliases[drugName] ?? [normalizeDrugKey(drugName)];
     for (const key of synthesizedPairs.keys()) {
-      if (key.split('|').includes(lower)) return true;
+      if (key.split('|').some((pairDrug) => aliases.includes(normalizeDrugKey(pairDrug)))) return true;
     }
     return false;
   }
@@ -208,12 +245,9 @@ export default function SessionPage() {
               <div className={styles.cardsRow}>
                 {activeRegimen.map((drug) => {
                   const isDone = isDrugDone(drug);
-                  const baseDrug = drug.toLowerCase().split('(')[0].trim();
+                  const aliases = regimenAliases[drug] ?? [normalizeDrugKey(drug)];
                   const drugSources = sourceUpdates.filter((update) =>
-                    update.pair.some((pairDrug) => {
-                      const pairLower = pairDrug.toLowerCase();
-                      return pairLower === baseDrug || pairLower.includes(baseDrug) || baseDrug.includes(pairLower);
-                    })
+                    update.pair.some((pairDrug) => aliases.includes(normalizeDrugKey(pairDrug)))
                   );
                   return (
                     <DrugStatusCard

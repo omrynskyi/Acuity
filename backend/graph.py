@@ -20,9 +20,8 @@ from typing import Any, AsyncGenerator, TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from backend.db import cache_synthesis, get_cached_syntheses_batch
 from backend.fanout import fanout_pairs
-from backend.memory import memory_for, pair_cache_key
+from backend.memory import memory_for
 from backend.report import build_report
 from backend.schemas import (
     Coverage,
@@ -71,6 +70,7 @@ async def intake_node(state: AcuityState) -> AcuityState:
     # Deduplicate by rxcui so that e.g. "Cocaine" and "Cocaine (nasal)" — same
     # ingredient, different form — don't produce a self-pair.
     seen: dict[str, str] = {}  # rxcui-or-name → canonical key
+    alias_to_key: dict[str, str] = {}
     for d in normalized:
         if not d.found:
             continue
@@ -78,6 +78,14 @@ async def intake_node(state: AcuityState) -> AcuityState:
         name_key = d.generic_name or d.input_name.lower()
         if dedup_key not in seen:
             seen[dedup_key] = name_key
+        canonical_key = seen[dedup_key]
+        alias_to_key[d.input_name.strip().lower()] = canonical_key
+        if d.generic_name:
+            alias_to_key[d.generic_name.strip().lower()] = canonical_key
+        for brand in d.brand_names:
+            brand_key = brand.strip().lower()
+            if brand_key:
+                alias_to_key[brand_key] = canonical_key
     keys = list(seen.values())
     all_pairs = list(combinations(sorted(set(keys)), 2))
 
@@ -85,7 +93,11 @@ async def intake_node(state: AcuityState) -> AcuityState:
     # only check pairs that involve that drug rather than every C(n,2) pair.
     target = (state.get("target_drug") or "").strip().lower()
     if target:
-        pairs = [p for p in all_pairs if target in p]
+        target_keys = {target}
+        canonical_target = alias_to_key.get(target)
+        if canonical_target:
+            target_keys.add(canonical_target)
+        pairs = [p for p in all_pairs if any(name in target_keys for name in p)]
     else:
         pairs = all_pairs
 
@@ -101,59 +113,20 @@ async def intake_node(state: AcuityState) -> AcuityState:
 
 
 async def memory_node(state: AcuityState) -> AcuityState:
-    """Split pairs into new vs cached — checks in-session memory first, then Supabase cache."""
+    """Split pairs into new vs cached.
+
+    Cache is intentionally disabled for now so every run does live fanout and
+    synthesis, which keeps the streaming UI active while we debug.
+    """
     t0 = datetime.now(timezone.utc)
-    mem = memory_for(state["session_id"])
     pairs = state["pairs"]
-
-    # Step 1: in-session memory (free, in-process)
-    session_new, cached_pairs, cached_syntheses = mem.partition(pairs)
-
-    # Step 2: batch-check Supabase for pairs not in session memory
-    regimen_by_name: dict[str, NormalizedDrug] = {
-        (d.generic_name or d.input_name).lower(): d
-        for d in state.get("regimen", [])
-    }
-
-    def _key_for_name_pair(pair: tuple[str, str]) -> str:
-        da = regimen_by_name.get(pair[0].lower())
-        db_ = regimen_by_name.get(pair[1].lower())
-        if da and db_:
-            return pair_cache_key(da, db_)
-        a, b = sorted([pair[0].lower(), pair[1].lower()])
-        return f"{a}|{b}"
-
-    name_pair_to_key = {p: _key_for_name_pair(p) for p in session_new}
-    db_hits = await get_cached_syntheses_batch(list(name_pair_to_key.values()))
-
-    new_pairs: list[tuple[str, str]] = []
-    db_cached_syntheses: list[SynthesizedInteraction] = []
-
-    for pair in session_new:
-        key = name_pair_to_key[pair]
-        if key in db_hits:
-            try:
-                synth = SynthesizedInteraction.model_validate(db_hits[key])
-                cached_pairs.append(pair)
-                db_cached_syntheses.append(synth)
-            except Exception:
-                log.warning("Corrupt cache entry for %s — re-computing", key)
-                new_pairs.append(pair)
-        else:
-            new_pairs.append(pair)
-
-    # Warm session memory with DB hits so follow-up requests skip the DB round-trip
-    if db_cached_syntheses:
-        mem.store_many(db_cached_syntheses)
-
-    all_cached_syntheses = list(cached_syntheses) + db_cached_syntheses
     durations = state["durations_ms"]
     durations["memory_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
     return {
         **state,
-        "new_pairs": new_pairs,
-        "cached_pairs": cached_pairs,
-        "syntheses": all_cached_syntheses,
+        "new_pairs": pairs,
+        "cached_pairs": [],
+        "syntheses": [],
         "durations_ms": durations,
     }
 
@@ -174,32 +147,12 @@ async def fanout_node(state: AcuityState) -> AcuityState:
 async def synthesis_node(state: AcuityState) -> AcuityState:
     """Synthesize per-pair verdicts. Parallel across pairs."""
     t0 = datetime.now(timezone.utc)
-    mem = memory_for(state["session_id"])
     findings = state["source_findings"]
     pairs = state["new_pairs"]
 
     new_syntheses = await asyncio.gather(
         *(synthesize_pair(p, findings.get(p, [])) for p in pairs)
     )
-    mem.store_many(new_syntheses)
-
-    regimen_by_name: dict[str, NormalizedDrug] = {
-        (d.generic_name or d.input_name).lower(): d
-        for d in state.get("regimen", [])
-    }
-
-    for synth in new_syntheses:
-        drug_a_name, drug_b_name = synth.drug_pair
-        da = regimen_by_name.get(drug_a_name.lower())
-        db_ = regimen_by_name.get(drug_b_name.lower())
-        if da and db_:
-            key = pair_cache_key(da, db_)
-        else:
-            a, b = sorted([drug_a_name.lower(), drug_b_name.lower()])
-            key = f"{a}|{b}"
-        asyncio.create_task(
-            cache_synthesis(key, drug_a_name, drug_b_name, synth.model_dump())
-        )
 
     durations = state["durations_ms"]
     durations["synthesis_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
@@ -411,10 +364,6 @@ async def run_analysis_streaming(
         "duration_ms": state["durations_ms"].get("memory_ms"),
     })
 
-    # Emit cached syntheses immediately so the frontend can update right away
-    for synth in state.get("syntheses", []):
-        yield ("synthesis_result", {**synth.model_dump(), "cached": True, "duration_ms": 0})
-
     # Stage 3: fanout — stream per-source events as each agent completes
     new_pairs = state.get("new_pairs", [])
     try:
@@ -496,26 +445,6 @@ async def run_analysis_streaming(
                 new_syntheses.append(synth)
                 yield ("synthesis_result", {**synth.model_dump(), "cached": False, "duration_ms": ms})
         await asyncio.gather(*tasks, return_exceptions=True)
-
-        mem = memory_for(session_id)
-        mem.store_many(new_syntheses)
-
-        regimen_by_name: dict[str, NormalizedDrug] = {
-            (d.generic_name or d.input_name).lower(): d
-            for d in state.get("regimen", [])
-        }
-        for synth in new_syntheses:
-            drug_a_name, drug_b_name = synth.drug_pair
-            da = regimen_by_name.get(drug_a_name.lower())
-            db_ = regimen_by_name.get(drug_b_name.lower())
-            if da and db_:
-                key = pair_cache_key(da, db_)
-            else:
-                a, b = sorted([drug_a_name.lower(), drug_b_name.lower()])
-                key = f"{a}|{b}"
-            asyncio.create_task(
-                cache_synthesis(key, drug_a_name, drug_b_name, synth.model_dump())
-            )
 
         durations = state["durations_ms"]
         durations["synthesis_ms"] = int((datetime.now(timezone.utc) - t_synth).total_seconds() * 1000)

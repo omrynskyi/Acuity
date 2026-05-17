@@ -12,6 +12,7 @@ export default function DrugStatusCard({ drugName, status, sources = [], snippet
   const reducedMotion = useReducedMotion();
   const isDone = status === 'done';
   const visibleSources = sources.slice(-VISIBLE_COUNT);
+  const sourceSlots = Array.from({ length: VISIBLE_COUNT }, (_, index) => visibleSources[index] ?? null);
   const itemPresence = getItemPresence(reducedMotion, 8, 0.99);
 
   return (
@@ -32,12 +33,14 @@ export default function DrugStatusCard({ drugName, status, sources = [], snippet
         {isDone && snippet && (
           <p className={styles.snippet}>{snippet}</p>
         )}
-        <AnimatePresence>
-          {!isDone && visibleSources.map((u) => {
-            const meta = SOURCE_META[u.source] ?? { label: u.source, url: '#', domain: null };
-            return (
+        {!isDone && sourceSlots.map((u, index) => {
+          if (!u) {
+            return <div key={`placeholder-${index}`} className={styles.sourcePlaceholder} aria-hidden="true" />;
+          }
+          const meta = SOURCE_META[u.source] ?? { label: u.source, url: '#', domain: null };
+          return (
+            <AnimatePresence key={`${u.source}-${u.pair.join('-')}`}>
               <motion.div
-                key={`${u.source}-${u.pair.join('-')}`}
                 className={styles.sourceEntry}
                 initial={itemPresence.initial}
                 animate={itemPresence.animate}
@@ -52,8 +55,9 @@ export default function DrugStatusCard({ drugName, status, sources = [], snippet
                     height={14}
                   />
                 )}
-                <span className={styles.sourceLabel}>{meta.label}</span>
-                <span className={styles.sourcePair}>{u.pair.join(' + ')}</span>
+                <div className={styles.sourceText}>
+                  <span className={styles.sourceLabel}>{meta.label}</span>
+                </div>
                 {u.n_findings > 0 && (
                   <span className={styles.sourceFindings}>
                     {u.n_findings} finding{u.n_findings !== 1 ? 's' : ''}
@@ -71,9 +75,9 @@ export default function DrugStatusCard({ drugName, status, sources = [], snippet
                   </a>
                 )}
               </motion.div>
-            );
-          })}
-        </AnimatePresence>
+            </AnimatePresence>
+          );
+        })}
       </div>
     </div>
   );
