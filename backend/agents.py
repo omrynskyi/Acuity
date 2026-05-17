@@ -28,16 +28,43 @@ MAX_FOLLOWUP_ROUNDS = 3
 # Drug-name repair
 # ─────────────────────────────────────────────────────────────────────────────
 
+import re as _re
+
+_STRENGTH_RE = _re.compile(
+    r"\b(\d+[./]\d+\s*(mg|mcg|mg/ml)?|\d+\s*(mg|mcg|g|ml|iu|%)|"
+    r"\d+[-\s]?(day|days|tablet|tab|cap|capsule|pack|week|hr|hour)s?\b)",
+    _re.IGNORECASE,
+)
+
 _NAME_REPAIR_SYSTEM = (
     "You are a pharmacology expert. Given a user-typed drug name that did not "
     "resolve in RxNorm, return the most likely generic ingredient name in lowercase. "
-    "If the name is completely unrecognizable as a drug, return null. "
-    'Return strict JSON: {"generic": "<name>"} or {"generic": null}.'
+    "For combination products return the primary pharmacologically significant ingredient. "
+    "Never return null for a recognizable brand or drug name.\n\n"
+    "Examples:\n"
+    '  "junel fe 1/20 28 day" -> {"generic": "norethindrone"}\n'
+    '  "ortho tri-cyclen lo" -> {"generic": "norgestimate"}\n'
+    '  "mucinex xr" -> {"generic": "guaifenesin"}\n'
+    '  "tylenol extra strength" -> {"generic": "acetaminophen"}\n'
+    '  "advil pm" -> {"generic": "ibuprofen"}\n'
+    '  "zzyzx unknown123" -> {"generic": null}\n\n'
+    'Return strict JSON only: {"generic": "<name>"} or {"generic": null}.'
 )
 
 
 async def repair_drug_name(raw: str) -> str | None:
     """Ask the LLM for the generic ingredient name when RxNorm returns nothing."""
+    # Heuristic pre-clean: strip strength tokens and try the shorter form
+    cleaned = _STRENGTH_RE.sub("", raw).strip().strip("-").strip()
+    if cleaned and cleaned.lower() != raw.lower():
+        from backend.sources.rxnorm import normalize_drug
+        try:
+            retry = await normalize_drug(cleaned)
+            if retry.found:
+                return (retry.generic_name or cleaned).lower()
+        except Exception:
+            pass
+
     try:
         result = await chat_json(
             model=NANO_MODEL,
