@@ -32,6 +32,26 @@ function drugAliases(drug) {
     .filter(Boolean);
 }
 
+function formatAgentDecision(data) {
+  const pair = data.pair ? data.pair.join(' / ') : '';
+  switch (data.stage) {
+    case 'drug_resolution':
+      return `Resolving '${data.input}' → '${data.resolved_to}'…`;
+    case 'quality_check':
+      if (data.verdict === 'sufficient') return pair ? `Evidence verified for ${pair}.` : null;
+      return pair ? `Researching further: ${(data.gaps || []).join(', ')} (${pair})` : null;
+    case 'research_step':
+      if (data.tool === 'done') return null;
+      return pair ? `Agent searching ${data.tool?.replace('_', ' ')} for ${pair}…` : null;
+    case 'synthesis_repair':
+      return `Repairing synthesis output for ${pair}…`;
+    case 'loop_cap_reached':
+      return pair ? `Research complete for ${pair}.` : null;
+    default:
+      return null;
+  }
+}
+
 export default function SessionPage() {
   const { id } = useParams();
   const location = useLocation();
@@ -60,6 +80,7 @@ export default function SessionPage() {
   const [addingToList, setAddingToList] = useState(false);
   const [showAddWarning, setShowAddWarning] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
+  const [agentLines, setAgentLines] = useState([]);
 
   const [displayNewDrug, setDisplayNewDrug] = useState(null);
   const [displayRegimen, setDisplayRegimen] = useState(null);
@@ -134,6 +155,9 @@ export default function SessionPage() {
           setStreamPhase('fanout');
         } else if (type === 'rate_limit') {
           setRateLimited(true);
+        } else if (type === 'agent_decision') {
+          const line = formatAgentDecision(data);
+          if (line) setAgentLines((prev) => [...prev.slice(-2), line]);
         } else if (type === 'synthesis_result') {
           setRateLimited(false);
           const key = data.drug_pair.join('|');
@@ -246,6 +270,20 @@ export default function SessionPage() {
               <p className="text-section-label">We are researching the possible drug interactions for:</p>
               <h1 className="text-title mt-4">{capitalize(activeNewDrug)}</h1>
               <p className={`${styles.loadingNote} mt-8`}>{PHASE_LABELS[streamPhase]}</p>
+              <AnimatePresence mode="popLayout">
+                {agentLines.map((line, i) => (
+                  <motion.p
+                    key={line}
+                    className={styles.agentLine}
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2, delay: i * 0.05 }}
+                  >
+                    {line}
+                  </motion.p>
+                ))}
+              </AnimatePresence>
               <AnimatePresence>
                 {rateLimited && (
                   <motion.p

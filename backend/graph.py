@@ -20,19 +20,16 @@ from typing import Any, AsyncGenerator, TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from backend.fanout import fanout_pairs
+from backend.agents import repair_drug_name, research_pair
 from backend.memory import memory_for
 from backend.report import build_report
 from backend.schemas import (
-    Coverage,
     NormalizedDrug,
     RegimenReport,
     SourceFindings,
     SynthesizedInteraction,
 )
-from backend.sources.arxiv_search import query_arxiv
-from backend.sources.brave_search import query_brave
-from backend.sources.rxnorm import normalize_regimen
+from backend.sources.rxnorm import normalize_drug, normalize_regimen
 from backend.synthesis import synthesize_pair
 
 log = logging.getLogger(__name__)
@@ -53,6 +50,8 @@ class AcuityState(TypedDict, total=False):
     report: RegimenReport
     started_at: datetime
     durations_ms: dict[str, int]
+    agent_decisions: list[dict]
+    unresolved_drugs: list[str]
 
 
 # --------------------------------------------------------------------------- #
@@ -60,10 +59,48 @@ class AcuityState(TypedDict, total=False):
 # --------------------------------------------------------------------------- #
 
 async def intake_node(state: AcuityState) -> AcuityState:
-    """Normalize free-text drug names and generate the pair list."""
+    """Normalize free-text drug names and generate the pair list.
+
+    For any drug that RxNorm couldn't resolve, the repair sub-agent suggests
+    the likely generic name and we retry normalization once.
+    """
     t0 = datetime.now(timezone.utc)
     raw = state.get("raw_regimen") or []
     normalized = await normalize_regimen(raw)
+
+    # Agent-driven name repair for unresolved drugs
+    agent_decisions: list[dict] = list(state.get("agent_decisions") or [])
+    unresolved: list[str] = []
+    repaired: list[NormalizedDrug] = []
+    for drug in normalized:
+        if drug.found:
+            repaired.append(drug)
+            continue
+        candidate = await repair_drug_name(drug.input_name)
+        if candidate and candidate.lower() != drug.input_name.lower():
+            retry = await normalize_drug(candidate)
+            if retry.found:
+                retry = NormalizedDrug(
+                    input_name=drug.input_name,
+                    rxcui=retry.rxcui,
+                    generic_name=retry.generic_name,
+                    brand_names=retry.brand_names,
+                    found=True,
+                )
+                decision = {
+                    "stage": "drug_resolution",
+                    "input": drug.input_name,
+                    "resolved_to": candidate,
+                    "rxcui": retry.rxcui,
+                }
+                agent_decisions.append(decision)
+                from backend.llm import emit_agent_decision
+                emit_agent_decision(decision)
+                repaired.append(retry)
+                continue
+        unresolved.append(drug.input_name)
+        repaired.append(drug)
+    normalized = repaired
 
     # Build pairs over recognised drugs only; unknown ones are surfaced in
     # the regimen list but excluded from interaction checks.
@@ -109,6 +146,8 @@ async def intake_node(state: AcuityState) -> AcuityState:
         "pairs": pairs,
         "started_at": state.get("started_at") or t0,
         "durations_ms": durations,
+        "agent_decisions": agent_decisions,
+        "unresolved_drugs": unresolved,
     }
 
 
@@ -131,16 +170,31 @@ async def memory_node(state: AcuityState) -> AcuityState:
     }
 
 
-async def fanout_node(state: AcuityState) -> AcuityState:
-    """Run the three source agents for each new pair, in parallel."""
+async def research_node(state: AcuityState) -> AcuityState:
+    """Autonomous agentic research for each new pair.
+
+    Runs the initial parallel fanout then enters a quality-check / research
+    loop capped at MAX_FOLLOWUP_ROUNDS. The loop lets the LLM decide what to
+    look up next when the initial evidence is sparse or low-quality.
+    """
     t0 = datetime.now(timezone.utc)
     new_pairs = state["new_pairs"]
+    findings: dict[tuple[str, str], list[SourceFindings]] = {}
+
     if new_pairs:
-        findings = await fanout_pairs(new_pairs, concurrency=4)
-    else:
-        findings = {}
+        results = await asyncio.gather(
+            *(research_pair(p) for p in new_pairs),
+            return_exceptions=True,
+        )
+        for pair, result in zip(new_pairs, results):
+            if isinstance(result, list):
+                findings[pair] = result
+            else:
+                log.warning("research_pair failed for %s: %s", pair, result)
+                findings[pair] = []
+
     durations = state["durations_ms"]
-    durations["fanout_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
+    durations["research_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
     return {**state, "source_findings": findings, "durations_ms": durations}
 
 
@@ -162,96 +216,6 @@ async def synthesis_node(state: AcuityState) -> AcuityState:
         "syntheses": state["syntheses"] + list(new_syntheses),
         "durations_ms": durations,
     }
-
-
-async def arxiv_node(state: AcuityState) -> AcuityState:
-    """Search arXiv for peer-reviewed papers on each new drug pair."""
-    t0 = datetime.now(timezone.utc)
-    new_pairs = state["new_pairs"]
-    findings: dict[tuple[str, str], list[SourceFindings]] = dict(state.get("source_findings") or {})
-    if new_pairs:
-        results = await asyncio.gather(
-            *(query_arxiv(p[0], p[1]) for p in new_pairs),
-            return_exceptions=True,
-        )
-        for pair, result in zip(new_pairs, results):
-            if isinstance(result, SourceFindings):
-                findings.setdefault(pair, []).append(result)
-            else:
-                log.warning("arxiv error for %s: %s", pair, result)
-    durations = state["durations_ms"]
-    durations["arxiv_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
-    return {**state, "source_findings": findings, "durations_ms": durations}
-
-
-_MIN_PAIR_FINDINGS = 3  # run extra Brave search when a pair has fewer total findings
-
-
-async def _augment_sparse_pairs(
-    pairs: list[tuple[str, str]],
-    findings: dict[tuple[str, str], list[SourceFindings]],
-) -> dict[tuple[str, str], list[SourceFindings]]:
-    """For pairs with few findings across all sources, run an extra Brave search."""
-    sparse = [
-        p for p in pairs
-        if sum(len(sf.findings) for sf in findings.get(p, [])) < _MIN_PAIR_FINDINGS
-    ]
-    if not sparse:
-        return findings
-
-    log.info("Running extra Brave search for %d sparse pair(s)", len(sparse))
-    extra_results = await asyncio.gather(
-        *(
-            query_brave(
-                p[0], p[1],
-                query_override=f"{p[0]} {p[1]} clinical pharmacology mechanism adverse reaction",
-            )
-            for p in sparse
-        ),
-        return_exceptions=True,
-    )
-    findings = dict(findings)
-    for pair, extra in zip(sparse, extra_results):
-        if not isinstance(extra, SourceFindings) or not extra.findings:
-            continue
-        sf_list = list(findings.get(pair, []))
-        brave_idx = next((i for i, sf in enumerate(sf_list) if sf.source == "brave_search"), None)
-        if brave_idx is not None:
-            orig = sf_list[brave_idx]
-            merged_findings = orig.findings + extra.findings
-            sf_list[brave_idx] = SourceFindings(
-                source=orig.source,
-                drug_pair=orig.drug_pair,
-                queried_at=orig.queried_at,
-                findings=merged_findings,
-                coverage=Coverage.FULL,
-                confidence=orig.confidence,
-            )
-        else:
-            sf_list.append(extra)
-        findings[pair] = sf_list
-    return findings
-
-
-async def brave_search_node(state: AcuityState) -> AcuityState:
-    """Run a Brave web search for each new drug pair; augment sparse pairs."""
-    t0 = datetime.now(timezone.utc)
-    new_pairs = state["new_pairs"]
-    findings: dict[tuple[str, str], list[SourceFindings]] = dict(state.get("source_findings") or {})
-    if new_pairs:
-        results = await asyncio.gather(
-            *(query_brave(p[0], p[1]) for p in new_pairs),
-            return_exceptions=True,
-        )
-        for pair, result in zip(new_pairs, results):
-            if isinstance(result, SourceFindings):
-                findings.setdefault(pair, []).append(result)
-            else:
-                log.warning("brave search error for %s: %s", pair, result)
-        findings = await _augment_sparse_pairs(new_pairs, findings)
-    durations = state["durations_ms"]
-    durations["brave_ms"] = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
-    return {**state, "source_findings": findings, "durations_ms": durations}
 
 
 async def report_node(state: AcuityState) -> AcuityState:
@@ -285,17 +249,13 @@ def build_graph() -> Any:
     g = StateGraph(AcuityState)
     g.add_node("intake", intake_node)
     g.add_node("memory", memory_node)
-    g.add_node("fanout", fanout_node)
-    g.add_node("arxiv", arxiv_node)
-    g.add_node("brave_search", brave_search_node)
+    g.add_node("research", research_node)
     g.add_node("synthesis", synthesis_node)
     g.add_node("report", report_node)
     g.set_entry_point("intake")
     g.add_edge("intake", "memory")
-    g.add_edge("memory", "fanout")
-    g.add_edge("fanout", "arxiv")
-    g.add_edge("arxiv", "brave_search")
-    g.add_edge("brave_search", "synthesis")
+    g.add_edge("memory", "research")
+    g.add_edge("research", "synthesis")
     g.add_edge("synthesis", "report")
     g.add_edge("report", END)
     return g.compile()
@@ -364,61 +324,38 @@ async def run_analysis_streaming(
         "duration_ms": state["durations_ms"].get("memory_ms"),
     })
 
-    # Stage 3: fanout — stream per-source events as each agent completes
+    # Stage 3: research — autonomous agentic loop per pair, streams source + agent_decision events
     new_pairs = state.get("new_pairs", [])
     try:
         if new_pairs:
-            fanout_queue: asyncio.Queue = asyncio.Queue()
-            fanout_task = asyncio.create_task(
-                fanout_pairs(new_pairs, concurrency=4, event_sink=fanout_queue)
-            )
-            expected_events = len(new_pairs) * 3  # 3 sources per pair
-            for _ in range(expected_events):
-                ev_type, payload = await fanout_queue.get()
+            research_queue: asyncio.Queue = asyncio.Queue()
+            all_findings: dict[tuple[str, str], list[SourceFindings]] = {}
+
+            async def _research_one(pair: tuple[str, str]) -> None:
+                result = await research_pair(pair, event_sink=research_queue)
+                all_findings[pair] = result
+
+            research_tasks = [asyncio.create_task(_research_one(p)) for p in new_pairs]
+            pending = set(research_tasks)
+            while pending:
+                done, pending = await asyncio.wait(pending, timeout=0.1, return_when=asyncio.FIRST_COMPLETED)
+                # Drain any events emitted during this slice
+                while not research_queue.empty():
+                    ev_type, payload = research_queue.get_nowait()
+                    yield (ev_type, payload)
+            # Final drain after all tasks complete
+            while not research_queue.empty():
+                ev_type, payload = research_queue.get_nowait()
                 yield (ev_type, payload)
-            findings = await fanout_task
+            findings = all_findings
         else:
             findings = {}
     except Exception as e:
-        yield ("error", {"detail": str(e), "stage": "fanout"})
+        yield ("error", {"detail": str(e), "stage": "research"})
         return
 
     durations = state["durations_ms"]
     state = {**state, "source_findings": findings, "durations_ms": durations}
-
-    # Stage 3b: arxiv — search for peer-reviewed papers per pair
-    try:
-        state = await arxiv_node(state)
-    except Exception as e:
-        yield ("error", {"detail": str(e), "stage": "arxiv"})
-        return
-    for pair in new_pairs:
-        sf_list = state["source_findings"].get(pair, [])
-        arxiv_sf = next((sf for sf in sf_list if sf.source == "arxiv"), None)
-        if arxiv_sf:
-            yield ("source_result", {
-                "pair": list(pair),
-                "source": "arxiv",
-                "coverage": arxiv_sf.coverage.value,
-                "n_findings": len(arxiv_sf.findings),
-            })
-
-    # Stage 3c: brave_search — web search per pair
-    try:
-        state = await brave_search_node(state)
-    except Exception as e:
-        yield ("error", {"detail": str(e), "stage": "brave_search"})
-        return
-    for pair in new_pairs:
-        sf_list = state["source_findings"].get(pair, [])
-        brave_sf = next((sf for sf in sf_list if sf.source == "brave_search"), None)
-        if brave_sf:
-            yield ("source_result", {
-                "pair": list(pair),
-                "source": "brave_search",
-                "coverage": brave_sf.coverage.value,
-                "n_findings": len(brave_sf.findings),
-            })
 
     # Stage 4: synthesis — run all pairs in parallel, yield each result as it finishes
     if new_pairs:

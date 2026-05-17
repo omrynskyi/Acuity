@@ -52,6 +52,18 @@ rate_limit_sink: contextvars.ContextVar[asyncio.Queue | None] = contextvars.Cont
     "rate_limit_sink", default=None
 )
 
+# Parallel sink for agent decision events (quality-check, research steps, drug repair).
+agent_decision_sink: contextvars.ContextVar[asyncio.Queue | None] = contextvars.ContextVar(
+    "agent_decision_sink", default=None
+)
+
+
+def emit_agent_decision(payload: dict) -> None:
+    """Non-blocking push of an agent decision event to the current SSE sink."""
+    sink = agent_decision_sink.get()
+    if sink is not None:
+        sink.put_nowait(payload)
+
 
 class _RateLimiter:
     """Leaky-bucket meter: spaces LLM requests evenly to stay under rpm/minute."""

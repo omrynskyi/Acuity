@@ -143,11 +143,13 @@ def _resolve_profile_id(user: dict) -> Optional[str]:
 
 
 async def _sse_generator(session_id: str, drugs: list[str], profile_id: Optional[str] = None, *, target_drug: Optional[str] = None):
-    from backend.llm import rate_limit_sink
+    from backend.llm import agent_decision_sink, rate_limit_sink
 
     rl_queue: asyncio.Queue = asyncio.Queue()
-    # Set BEFORE create_task so child tasks inherit this value via context copy.
+    ad_queue: asyncio.Queue = asyncio.Queue()
+    # Set BEFORE create_task so child tasks inherit these values via context copy.
     rate_limit_sink.set(rl_queue)
+    agent_decision_sink.set(ad_queue)
 
     combined: asyncio.Queue = asyncio.Queue()
 
@@ -166,8 +168,14 @@ async def _sse_generator(session_id: str, drugs: list[str], profile_id: Optional
             item = await rl_queue.get()
             await combined.put(("rate_limit", item))
 
+    async def _pump_ad() -> None:
+        while True:
+            item = await ad_queue.get()
+            await combined.put(("agent_decision", item))
+
     pipeline_task = asyncio.create_task(_pump_pipeline())
     rl_task = asyncio.create_task(_pump_rl())
+    ad_task = asyncio.create_task(_pump_ad())
 
     try:
         while True:
@@ -185,6 +193,7 @@ async def _sse_generator(session_id: str, drugs: list[str], profile_id: Optional
         err = json.dumps({"detail": str(e), "stage": "unknown"}, default=str)
         yield f"event: error\ndata: {err}\n\n"
     finally:
+        ad_task.cancel()
         rl_task.cancel()
         pipeline_task.cancel()
 

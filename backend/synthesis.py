@@ -19,7 +19,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Iterable
 
-from backend.llm import SUPER_MODEL, LLMUnavailable, chat_json
+from backend.llm import SUPER_MODEL, LLMUnavailable, chat, chat_json, emit_agent_decision
 from backend.schemas import (
     Citation,
     Coverage,
@@ -289,11 +289,15 @@ async def synthesize_pair(
     if force_fallback:
         return _fallback_synthesize(pair, sources)
 
+    system = _system_prompt()
+    user = _render_findings(pair, sources)
+
+    # First attempt — raw text so we can feed it to the repair agent if needed
     try:
-        raw = await chat_json(
+        raw_text = await chat(
             model=SUPER_MODEL,
-            system=_system_prompt(),
-            user=_render_findings(pair, sources),
+            system=system,
+            user=user,
             temperature=0.1,
             max_tokens=4096,
             timeout=120.0,
@@ -305,8 +309,58 @@ async def synthesize_pair(
         log.warning("synthesis LLM call failed (%s); using fallback", e)
         return _fallback_synthesize(pair, sources)
 
+    # Try to parse the raw text
     try:
+        text = raw_text.strip()
+        if text.startswith("```"):
+            text = text.strip("`")
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+        import json as _json
+        raw = _json.loads(text)
+        result = _parse_llm_output(pair, raw, sources)
+        # Emit repair skipped if output looks degenerate (empty headline + NO_CONCERN)
+        if result.severity.value == "no_concern" and not result.headline.strip():
+            pass  # fall through to repair
+        else:
+            return result
+    except Exception:
+        pass  # fall through to one-shot repair
+
+    # One-shot repair pass
+    _SCHEMA_HINT = (
+        '{"severity":"major|moderate|minor|no_concern","headline":"string",'
+        '"reasoning":"string","citations":[{"source":"...","finding_index":0,"quote":"..."}],'
+        '"predicted_but_unverified":false,"sources_agreement":"agree|disagree|single_source|no_data"}'
+    )
+    repair_prompt = (
+        f"The previous response was not valid JSON matching this schema:\n{_SCHEMA_HINT}\n\n"
+        f"Here was the response:\n{raw_text[:2000]}\n\nReturn ONLY the corrected JSON."
+    )
+    try:
+        repaired_text = await chat(
+            model=SUPER_MODEL,
+            system=system,
+            user=repair_prompt,
+            temperature=0.0,
+            max_tokens=2048,
+            timeout=60.0,
+        )
+        text = repaired_text.strip()
+        if text.startswith("```"):
+            text = text.strip("`")
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+        import json as _json
+        raw = _json.loads(text)
+        emit_agent_decision({
+            "stage": "synthesis_repair",
+            "pair": list(pair),
+            "why": "repaired malformed synthesis JSON",
+        })
         return _parse_llm_output(pair, raw, sources)
     except Exception as e:  # noqa: BLE001
-        log.warning("synthesis parse failed (%s); using fallback", e)
+        log.warning("synthesis repair failed (%s); using fallback", e)
         return _fallback_synthesize(pair, sources)

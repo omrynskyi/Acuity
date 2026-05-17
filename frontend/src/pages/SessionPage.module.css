@@ -31,6 +31,14 @@
   margin-top: 8px;
 }
 
+.agentLine {
+  font-size: 12px;
+  color: var(--color-text-light);
+  font-style: italic;
+  margin-top: 4px;
+  opacity: 0.75;
+}
+
 .rateLimitNote {
   font-size: 13px;
   color: var(--color-text-light);
